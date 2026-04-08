@@ -1,9 +1,12 @@
+// Sets up the Express app, connects shared route files, and starts the backend server
+
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import mongoose from "mongoose";
 import TestEntry from "./models/TestEntry.js";
 import authRoutes from "./routes/authRoutes.js";
+import caseRoutes from "./routes/caseRoutes.js";
 
 dotenv.config();
 
@@ -66,6 +69,9 @@ app.get("/api/debug/test-entries", async (req, res) => {
 
 // Auth routes
 app.use("/api/auth", authRoutes);
+
+// Case routes
+app.use("/api/cases", caseRoutes);
 
 // Connect DB and start the server
 async function start() {
