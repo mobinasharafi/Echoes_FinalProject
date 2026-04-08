@@ -1,3 +1,4 @@
+// Handles authentication routes like register, login, and temporary auth testing
 import express from "express";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
