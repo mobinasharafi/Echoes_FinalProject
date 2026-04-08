@@ -1,5 +1,6 @@
 import express from "express";
 import bcrypt from "bcrypt";
+import jwt from "jsonwebtoken";
 import User from "../models/User.js";
 
 const router = express.Router();
@@ -32,7 +33,6 @@ router.get("/debug-register", async (req, res) => {
       });
     }
 
-    // This lets us confirm password hashing is working too
     const passwordHash = await bcrypt.hash("test1234", 10);
 
     const user = await User.create({
@@ -84,7 +84,6 @@ router.post("/register", async (req, res) => {
       });
     }
 
-    // Store the password safely instead of saving it raw
     const passwordHash = await bcrypt.hash(password, 10);
 
     const user = await User.create({
@@ -94,10 +93,20 @@ router.post("/register", async (req, res) => {
       role: role || "public",
     });
 
-    // Send back only the fields the frontend actually needs
+    // Give the client a signed token straight after registration
+    const token = jwt.sign(
+      {
+        userId: user._id,
+        role: user.role,
+      },
+      process.env.JWT_SECRET,
+      { expiresIn: "7d" }
+    );
+
     res.status(201).json({
       ok: true,
       message: "User registered successfully",
+      token,
       user: {
         id: user._id,
         fullName: user.fullName,
@@ -109,6 +118,69 @@ router.post("/register", async (req, res) => {
     res.status(500).json({
       ok: false,
       message: "Failed to register user",
+      error: err.message,
+    });
+  }
+});
+
+// Login an existing user
+router.post("/login", async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({
+        ok: false,
+        message: "Email and password are required",
+      });
+    }
+
+    const user = await User.findOne({
+      email: email.toLowerCase().trim(),
+    });
+
+    if (!user) {
+      return res.status(400).json({
+        ok: false,
+        message: "Invalid email or password",
+      });
+    }
+
+    // Compare the typed password against the saved hash
+    const passwordMatches = await bcrypt.compare(password, user.passwordHash);
+
+    if (!passwordMatches) {
+      return res.status(400).json({
+        ok: false,
+        message: "Invalid email or password",
+      });
+    }
+
+    // This token will be used later for protected routes
+    const token = jwt.sign(
+      {
+        userId: user._id,
+        role: user.role,
+      },
+      process.env.JWT_SECRET,
+      { expiresIn: "7d" }
+    );
+
+    res.json({
+      ok: true,
+      message: "Login successful",
+      token,
+      user: {
+        id: user._id,
+        fullName: user.fullName,
+        email: user.email,
+        role: user.role,
+      },
+    });
+  } catch (err) {
+    res.status(500).json({
+      ok: false,
+      message: "Failed to log in",
       error: err.message,
     });
   }
