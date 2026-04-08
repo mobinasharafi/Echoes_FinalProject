@@ -3,22 +3,23 @@ import cors from "cors";
 import dotenv from "dotenv";
 import mongoose from "mongoose";
 import TestEntry from "./models/TestEntry.js";
+import authRoutes from "./routes/authRoutes.js";
 
 dotenv.config();
 
 const app = express();
 
-// Middleware
+// Parse incoming JSON
 app.use(express.json());
 
-// CORS
+// Keep CORS simple for local development
 app.use(
   cors({
     origin: process.env.CORS_ORIGIN || "*",
   })
 );
 
-// Health route
+// Basic health check
 app.get("/api/health", (req, res) => {
   res.json({ ok: true, message: "Echoes API is running" });
 });
@@ -62,6 +63,9 @@ app.get("/api/debug/test-entries", async (req, res) => {
     });
   }
 });
+
+// Auth routes
+app.use("/api/auth", authRoutes);
 
 // Connect DB and start the server
 async function start() {
