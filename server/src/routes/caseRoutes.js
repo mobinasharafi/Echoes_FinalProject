@@ -15,6 +15,41 @@ router.get("/test", (req, res) => {
   });
 });
 
+// List published cases, with optional city and region filters
+router.get("/", async (req, res) => {
+  try {
+    const { city, region } = req.query;
+
+    const filter = {
+      visibility: "published",
+    };
+
+    if (city) {
+      filter.city = new RegExp(`^${city.trim()}$`, "i");
+    }
+
+    if (region) {
+      filter.region = new RegExp(`^${region.trim()}$`, "i");
+    }
+
+    const cases = await Case.find(filter)
+      .sort({ createdAt: -1 })
+      .populate("createdBy", "fullName email role");
+
+    res.json({
+      ok: true,
+      count: cases.length,
+      cases,
+    });
+  } catch (err) {
+    res.status(500).json({
+      ok: false,
+      message: "Failed to fetch cases",
+      error: err.message,
+    });
+  }
+});
+
 // Create a new case - only representatives and moderators can do this
 router.post(
   "/",
