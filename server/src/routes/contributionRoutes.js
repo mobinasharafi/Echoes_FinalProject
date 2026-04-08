@@ -60,4 +60,49 @@ router.post("/lead/:caseId", authMiddleware, async (req, res) => {
   }
 });
 
+// Add a support message to a case
+router.post("/support/:caseId", authMiddleware, async (req, res) => {
+  try {
+    const { message } = req.body;
+    const { caseId } = req.params;
+
+    if (!message || !message.trim()) {
+      return res.status(400).json({
+        ok: false,
+        message: "Support message is required",
+      });
+    }
+
+    const existingCase = await Case.findById(caseId);
+
+    if (!existingCase) {
+      return res.status(404).json({
+        ok: false,
+        message: "Case not found",
+      });
+    }
+
+    // Support messages are still moderated but separated from leads
+    const contribution = await Contribution.create({
+      caseId,
+      createdBy: req.user._id,
+      type: "support",
+      message: message.trim(),
+      moderationStatus: "pending",
+    });
+
+    res.status(201).json({
+      ok: true,
+      message: "Support message submitted successfully",
+      contribution,
+    });
+  } catch (err) {
+    res.status(500).json({
+      ok: false,
+      message: "Failed to submit support message",
+      error: err.message,
+    });
+  }
+});
+
 export default router;
