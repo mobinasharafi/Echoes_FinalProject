@@ -7,6 +7,7 @@ import mongoose from "mongoose";
 import TestEntry from "./models/TestEntry.js";
 import authRoutes from "./routes/authRoutes.js";
 import caseRoutes from "./routes/caseRoutes.js";
+import contributionRoutes from "./routes/contributionRoutes.js";
 
 dotenv.config();
 
@@ -72,6 +73,9 @@ app.use("/api/auth", authRoutes);
 
 // Case routes
 app.use("/api/cases", caseRoutes);
+
+// Contribution routes
+app.use("/api/contributions", contributionRoutes);
 
 // Connect DB and start the server
 async function start() {
