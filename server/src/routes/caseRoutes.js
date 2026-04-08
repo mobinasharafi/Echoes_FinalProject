@@ -50,6 +50,34 @@ router.get("/", async (req, res) => {
   }
 });
 
+// Get one case by id
+router.get("/:id", async (req, res) => {
+  try {
+    const foundCase = await Case.findById(req.params.id).populate(
+      "createdBy",
+      "fullName email role"
+    );
+
+    if (!foundCase) {
+      return res.status(404).json({
+        ok: false,
+        message: "Case not found",
+      });
+    }
+
+    res.json({
+      ok: true,
+      case: foundCase,
+    });
+  } catch (err) {
+    res.status(500).json({
+      ok: false,
+      message: "Failed to fetch case",
+      error: err.message,
+    });
+  }
+});
+
 // Create a new case - only representatives and moderators can do this
 router.post(
   "/",
