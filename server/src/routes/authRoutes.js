@@ -1,4 +1,5 @@
 // Handles authentication routes like register, login, and temporary auth testing
+
 import express from "express";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
@@ -85,13 +86,16 @@ router.post("/register", async (req, res) => {
       });
     }
 
+    // Public registration should never be able to create moderator accounts
+    const safeRole = role === "representative" ? "representative" : "public";
+
     const passwordHash = await bcrypt.hash(password, 10);
 
     const user = await User.create({
       fullName: fullName.trim(),
       email: email.toLowerCase().trim(),
       passwordHash,
-      role: role || "public",
+      role: safeRole,
     });
 
     // Give the client a signed token straight after registration
