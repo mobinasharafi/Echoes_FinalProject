@@ -1,6 +1,11 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
+function isStrongPassword(password) {
+  const strongPasswordPattern = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/;
+  return strongPasswordPattern.test(password);
+}
+
 export default function Register() {
   const navigate = useNavigate();
 
@@ -14,6 +19,12 @@ export default function Register() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [attemptedSubmit, setAttemptedSubmit] = useState(false);
+
+  const passwordIsWeak =
+    attemptedSubmit &&
+    formData.password.length > 0 &&
+    !isStrongPassword(formData.password);
 
   const handleChange = (event) => {
     const { name, value } = event.target;
@@ -26,6 +37,7 @@ export default function Register() {
 
   const handleSubmit = async (event) => {
     event.preventDefault();
+    setAttemptedSubmit(true);
     setLoading(true);
     setError("");
     setSuccess("");
@@ -45,7 +57,6 @@ export default function Register() {
         throw new Error(data.message || "Registration failed");
       }
 
-      // Save the session so protected actions can use it later
       localStorage.setItem("token", data.token);
       localStorage.setItem("user", JSON.stringify(data.user));
 
@@ -55,7 +66,13 @@ export default function Register() {
         navigate("/");
       }, 1000);
     } catch (err) {
-      setError(err.message || "Something went wrong");
+      const message = err.message || "Something went wrong";
+
+      if (message.toLowerCase().includes("password")) {
+        setError("");
+      } else {
+        setError(message);
+      }
     } finally {
       setLoading(false);
     }
@@ -119,6 +136,18 @@ export default function Register() {
               marginTop: "6px",
             }}
           />
+          <p
+            style={{
+              fontSize: "14px",
+              marginTop: "8px",
+              color: passwordIsWeak ? "#b91c1c" : "#555",
+            }}
+          >
+            Please choose a password with at least 8 characters, including one
+            uppercase letter, one lowercase letter, and one number. Echoes deals
+            with sensitive information, so protecting your account helps us protect
+            you too.
+          </p>
         </div>
 
         <div style={{ marginBottom: "16px" }}>

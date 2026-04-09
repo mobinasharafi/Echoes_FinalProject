@@ -7,7 +7,20 @@ import User from "../models/User.js";
 
 const router = express.Router();
 
-// Quick check that auth routes are wired in properly
+function getPasswordValidationMessage() {
+  return "For safety, passwords must be at least 8 characters long and include at least one uppercase letter, one lowercase letter, and one number. Echoes deals with sensitive information, so protecting your account helps us protect you too.";
+}
+
+function isStrongPassword(password) {
+  if (typeof password !== "string") {
+    return false;
+  }
+
+  const strongPasswordPattern = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/;
+  return strongPasswordPattern.test(password);
+}
+
+// Quick check that auth routes are proper
 router.get("/test", (req, res) => {
   res.json({
     ok: true,
@@ -35,7 +48,7 @@ router.get("/debug-register", async (req, res) => {
       });
     }
 
-    const passwordHash = await bcrypt.hash("test1234", 10);
+    const passwordHash = await bcrypt.hash("Test1234", 10);
 
     const user = await User.create({
       fullName: "Echoes Test User",
@@ -72,6 +85,13 @@ router.post("/register", async (req, res) => {
       return res.status(400).json({
         ok: false,
         message: "Full name, email, and password are required",
+      });
+    }
+
+    if (!isStrongPassword(password)) {
+      return res.status(400).json({
+        ok: false,
+        message: getPasswordValidationMessage(),
       });
     }
 
@@ -161,7 +181,6 @@ router.post("/login", async (req, res) => {
       });
     }
 
-    // This token will be used later for protected routes
     const token = jwt.sign(
       {
         userId: user._id,
