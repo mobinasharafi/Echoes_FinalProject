@@ -93,6 +93,8 @@ router.post(
         lastSeenLocation,
         city,
         region,
+        latitude,
+        longitude,
         photoUrl,
       } = req.body;
 
@@ -102,11 +104,26 @@ router.post(
         !lastSeenDate ||
         !lastSeenLocation ||
         !city ||
-        !region
+        !region ||
+        latitude === undefined ||
+        longitude === undefined
       ) {
         return res.status(400).json({
           ok: false,
           message: "Missing required case fields",
+        });
+      }
+
+      const parsedLatitude = Number(latitude);
+      const parsedLongitude = Number(longitude);
+
+      if (
+        Number.isNaN(parsedLatitude) ||
+        Number.isNaN(parsedLongitude)
+      ) {
+        return res.status(400).json({
+          ok: false,
+          message: "Latitude and longitude must be valid numbers",
         });
       }
 
@@ -119,6 +136,8 @@ router.post(
         lastSeenLocation: lastSeenLocation.trim(),
         city: city.trim(),
         region: region.trim(),
+        latitude: parsedLatitude,
+        longitude: parsedLongitude,
         photoUrl: photoUrl?.trim() || "",
       });
 

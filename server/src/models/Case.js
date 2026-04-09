@@ -39,6 +39,14 @@ const caseSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
+    latitude: {
+      type: Number,
+      required: true,
+    },
+    longitude: {
+      type: Number,
+      required: true,
+    },
     photoUrl: {
       type: String,
       trim: true,
