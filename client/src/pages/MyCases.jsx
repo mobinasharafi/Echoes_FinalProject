@@ -1,6 +1,8 @@
+// Shows active cases for representatives or all active cases for moderators
+
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { apiGet } from "../api.js";
+import { apiGet, getFileUrl } from "../api.js";
 
 export default function MyCases() {
   const [cases, setCases] = useState([]);
@@ -9,6 +11,8 @@ export default function MyCases() {
 
   const storedUser = localStorage.getItem("user");
   const user = storedUser ? JSON.parse(storedUser) : null;
+
+  const isModerator = user && user.role === "moderator";
 
   useEffect(() => {
     const fetchMyCases = async () => {
@@ -65,7 +69,7 @@ export default function MyCases() {
   if (!user || (user.role !== "representative" && user.role !== "moderator")) {
     return (
       <div className="page-shell">
-        <h1 className="page-title">My Active Cases</h1>
+        <h1 className="page-title">Active Cases</h1>
         <p className="status-error">
           You do not have permission to view this page.
         </p>
@@ -75,25 +79,31 @@ export default function MyCases() {
 
   return (
     <div className="page-shell">
-      <h1 className="page-title">My Active Cases</h1>
+      <h1 className="page-title">
+        {isModerator ? "All Active Cases" : "My Active Cases"}
+      </h1>
       <p className="page-intro">
-        Open a case below to review new messages and manage it.
+        {isModerator
+          ? "Open any active case below to review messages and moderate activity."
+          : "Open a case below to review new messages and manage it."}
       </p>
 
-      {loading && <p>Loading your active cases...</p>}
+      {loading && <p>Loading active cases...</p>}
 
       {error && <p className="status-error">{error}</p>}
 
       {!loading && !error && cases.length === 0 && (
-        <p>You do not have any active published cases right now.</p>
+        <p>
+          {isModerator
+            ? "There are no active published cases right now."
+            : "You do not have any active published cases right now."}
+        </p>
       )}
 
       {!loading && !error && cases.length > 0 && (
         <div className="stack-list">
           {cases.map((caseItem) => {
-            const imageUrl = caseItem.photoUrl
-              ? `http://localhost:5000${caseItem.photoUrl}`
-              : "";
+            const imageUrl = caseItem.photoUrl ? getFileUrl(caseItem.photoUrl) : "";
 
             return (
               <div key={caseItem._id} className="page-card">
@@ -134,7 +144,9 @@ export default function MyCases() {
 
                 <p>{caseItem.description}</p>
 
-                <Link to={`/cases/${caseItem._id}`}>Manage this case</Link>
+                <Link to={`/cases/${caseItem._id}`}>
+                  {isModerator ? "Review this case" : "Manage this case"}
+                </Link>
 
                 {caseItem.newMessagesCount === 0 ? (
                   <p className="helper-text my-case-message-status">

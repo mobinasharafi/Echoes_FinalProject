@@ -1,3 +1,5 @@
+// Sets up the main app routes and shows different navigation for each role
+
 import { Routes, Route, Link, useNavigate } from "react-router-dom";
 import Home from "./pages/Home.jsx";
 import Browse from "./pages/Browse.jsx";
@@ -6,6 +8,7 @@ import SubmitCase from "./pages/SubmitCase.jsx";
 import Login from "./pages/Login.jsx";
 import Register from "./pages/Register.jsx";
 import MyCases from "./pages/MyCases.jsx";
+import Moderation from "./pages/Moderation.jsx";
 
 function AppContent() {
   const navigate = useNavigate();
@@ -13,13 +16,13 @@ function AppContent() {
   const storedUser = localStorage.getItem("user");
   const user = storedUser ? JSON.parse(storedUser) : null;
 
-  const canManageCases =
+  const isRepresentative = user && user.role === "representative";
+  const isModerator = user && user.role === "moderator";
+  const canSubmitCases =
     user && (user.role === "representative" || user.role === "moderator");
 
   const handleLogout = () => {
-    const confirmed = window.confirm(
-      "Are you sure you want to log out?"
-    );
+    const confirmed = window.confirm("Are you sure you want to log out?");
 
     if (!confirmed) {
       return;
@@ -35,9 +38,13 @@ function AppContent() {
       <header className="nav-bar">
         <Link to="/">Home</Link>
         <Link to="/browse">Browse</Link>
+
+        {isModerator && <Link to="/moderation">See Updates</Link>}
+
         <Link to="/submit">Submit Case</Link>
 
-        {canManageCases && <Link to="/my-cases">View My Active Cases</Link>}
+        {isRepresentative && <Link to="/my-cases">View My Active Cases</Link>}
+        {isModerator && <Link to="/my-cases">View All Active Cases</Link>}
 
         {!user && <Link to="/login">Login</Link>}
         {!user && <Link to="/register">Register</Link>}
@@ -55,6 +62,7 @@ function AppContent() {
         <Route path="/cases/:id" element={<CaseDetail />} />
         <Route path="/submit" element={<SubmitCase />} />
         <Route path="/my-cases" element={<MyCases />} />
+        <Route path="/moderation" element={<Moderation />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="*" element={<div>Not found</div>} />

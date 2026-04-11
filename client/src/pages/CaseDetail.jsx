@@ -385,8 +385,19 @@ export default function CaseDetail() {
         );
       }
 
-      setPostSuccess(data.message || "Contribution reported successfully.");
-      setPostError("");
+      if (
+        data.message ===
+        "Your report was recorded, but this reason does not count toward automatic removal"
+      ) {
+        setPostError(
+          "Your report was recorded and will be reviewed, but it does not guarantee removal."
+        );
+        setPostSuccess("");
+      } else {
+        setPostSuccess(data.message || "Contribution reported successfully.");
+        setPostError("");
+      }
+
       setOpenReportBoxId("");
     } catch (err) {
       setPostError(err.message || "Failed to report contribution.");
@@ -774,6 +785,17 @@ export default function CaseDetail() {
                 otherReason: "",
               };
 
+              const isModeratorReply =
+                typeof contribution.representativeReply === "string" &&
+                contribution.representativeReply.startsWith("Website Moderator:");
+
+              const visibleReply = isModeratorReply
+                ? contribution.representativeReply.replace(
+                    "Website Moderator:",
+                    ""
+                  ).trim()
+                : contribution.representativeReply;
+
               return (
                 <div key={contribution._id} className="sub-card contribution-card">
                   <div className="contribution-top-row">
@@ -961,9 +983,13 @@ export default function CaseDetail() {
                   {contribution.representativeReply ? (
                     <div className="sub-card" style={{ marginTop: "14px" }}>
                       <p>
-                        <strong>Reply from representative</strong>
+                        <strong>
+                          {isModeratorReply
+                            ? "Reply from Website Moderator"
+                            : "Reply from representative"}
+                        </strong>
                       </p>
-                      <p>{contribution.representativeReply}</p>
+                      <p>{visibleReply}</p>
                     </div>
                   ) : null}
 
@@ -1009,7 +1035,7 @@ export default function CaseDetail() {
                         id={`reply-${contribution._id}`}
                         value={
                           replyDrafts[contribution._id] ??
-                          contribution.representativeReply ??
+                          visibleReply ??
                           ""
                         }
                         onChange={(event) =>

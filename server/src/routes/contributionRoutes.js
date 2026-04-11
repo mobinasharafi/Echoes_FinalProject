@@ -459,7 +459,11 @@ router.patch("/:id/reply", authMiddleware, async (req, res) => {
       });
     }
 
-    contribution.representativeReply = reply.trim();
+    contribution.representativeReply =
+      req.user.role === "moderator"
+        ? `Website Moderator: ${reply.trim()}`
+        : reply.trim();
+
     contribution.repliedAt = new Date();
 
     await contribution.save();
