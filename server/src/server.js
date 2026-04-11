@@ -4,6 +4,8 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import mongoose from "mongoose";
+import path from "path";
+import { fileURLToPath } from "url";
 import TestEntry from "./models/TestEntry.js";
 import authRoutes from "./routes/authRoutes.js";
 import caseRoutes from "./routes/caseRoutes.js";
@@ -12,6 +14,8 @@ import contributionRoutes from "./routes/contributionRoutes.js";
 dotenv.config();
 
 const app = express();
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Parse incoming JSON
 app.use(express.json());
@@ -22,6 +26,9 @@ app.use(
     origin: process.env.CORS_ORIGIN || "*",
   })
 );
+
+// Serve uploaded files
+app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
 
 // Basic health check
 app.get("/api/health", (req, res) => {

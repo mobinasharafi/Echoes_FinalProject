@@ -1,5 +1,30 @@
 import mongoose from "mongoose";
 
+const contributionReportSchema = new mongoose.Schema(
+  {
+    reportedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
+    reason: {
+      type: String,
+      enum: [
+        "harassment",
+        "threat",
+        "victim_blaming",
+        "misinformation",
+        "i_just_dont_like_this_comment",
+      ],
+      required: true,
+    },
+  },
+  {
+    _id: false,
+    timestamps: true,
+  }
+);
+
 const contributionSchema = new mongoose.Schema(
   {
     caseId: {
@@ -22,9 +47,23 @@ const contributionSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
+    representativeReply: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+    repliedAt: {
+      type: Date,
+      default: null,
+    },
+    reports: [contributionReportSchema],
+    actionableReportCount: {
+      type: Number,
+      default: 0,
+    },
     moderationStatus: {
       type: String,
-      enum: ["pending", "approved", "rejected"],
+      enum: ["pending", "approved", "rejected", "removed"],
       default: "pending",
     },
   },

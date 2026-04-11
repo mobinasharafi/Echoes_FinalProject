@@ -1,17 +1,32 @@
-// Keeping fetch logic in one place
-function getAuthHeaders() {
+// Keeps API requests and shared URL helpers in one place
+
+function getAuthHeaders(isJson = true) {
   const token = localStorage.getItem("token");
 
-  if (!token) {
-    return {
-      "Content-Type": "application/json",
-    };
+  const headers = {};
+
+  if (isJson) {
+    headers["Content-Type"] = "application/json";
   }
 
-  return {
-    "Content-Type": "application/json",
-    Authorization: `Bearer ${token}`,
-  };
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+
+  return headers;
+}
+
+// Builds full file URLs safely for local use and later deployment
+export function getFileUrl(filePath) {
+  if (!filePath) {
+    return "";
+  }
+
+  if (filePath.startsWith("http://") || filePath.startsWith("https://")) {
+    return filePath;
+  }
+
+  return `${window.location.origin}${filePath}`;
 }
 
 async function handleResponse(res) {
@@ -23,7 +38,7 @@ async function handleResponse(res) {
   if (!res.ok) {
     const message =
       typeof data === "object" && data !== null
-        ? data.message || "Request failed"
+        ? data.error || data.message || "Request failed"
         : data || "Request failed";
 
     throw new Error(`Request failed (${res.status}): ${message}`);
@@ -32,8 +47,11 @@ async function handleResponse(res) {
   return data;
 }
 
-export async function apiGet(path) {
-  const res = await fetch(path);
+export async function apiGet(path, useAuth = false) {
+  const res = await fetch(path, {
+    headers: useAuth ? getAuthHeaders(false) : undefined,
+  });
+
   return handleResponse(res);
 }
 
@@ -41,7 +59,7 @@ export async function apiPost(path, body, useAuth = false) {
   const res = await fetch(path, {
     method: "POST",
     headers: useAuth
-      ? getAuthHeaders()
+      ? getAuthHeaders(true)
       : {
           "Content-Type": "application/json",
         },
@@ -49,4 +67,31 @@ export async function apiPost(path, body, useAuth = false) {
   });
 
   return handleResponse(res);
+}
+
+export async function apiPatch(path, body, useAuth = false) {
+  const res = await fetch(path, {
+    method: "PATCH",
+    headers: useAuth
+      ? getAuthHeaders(true)
+      : {
+          "Content-Type": "application/json",
+        },
+    body: JSON.stringify(body),
+  });
+
+  return handleResponse(res);
+}
+
+export async function apiDelete(path, useAuth = false) {
+  const res = await fetch(path, {
+    method: "DELETE",
+    headers: useAuth ? getAuthHeaders(false) : undefined,
+  });
+
+  return handleResponse(res);
+}
+
+export async function copyText(text) {
+  await navigator.clipboard.writeText(text);
 }

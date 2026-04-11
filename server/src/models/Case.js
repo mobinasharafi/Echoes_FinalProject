@@ -1,3 +1,5 @@
+// Defines the missing person case structure saved in MongoDB
+
 import mongoose from "mongoose";
 
 const caseSchema = new mongoose.Schema(
@@ -39,13 +41,12 @@ const caseSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
+    // These are what the map will use to place a case marker
     latitude: {
       type: Number,
-      required: true,
     },
     longitude: {
       type: Number,
-      required: true,
     },
     photoUrl: {
       type: String,

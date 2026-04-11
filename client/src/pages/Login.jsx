@@ -50,13 +50,15 @@ export default function Login() {
   };
 
   return (
-    <div style={{ maxWidth: "500px", margin: "40px auto", padding: "20px" }}>
-      <h1>Login</h1>
-      <p>Sign in to your Echoes account.</p>
+    <div className="page-shell-narrow">
+      <h1 className="page-title">Login</h1>
+      <p className="page-intro">Sign in to your Echoes account.</p>
 
-      <form onSubmit={handleSubmit}>
-        <div style={{ marginBottom: "16px" }}>
-          <label htmlFor="email">Email</label>
+      <form onSubmit={handleSubmit} className="page-card">
+        <div className="form-row">
+          <label htmlFor="email" className="form-label">
+            Email
+          </label>
           <input
             id="email"
             name="email"
@@ -64,17 +66,14 @@ export default function Login() {
             value={formData.email}
             onChange={handleChange}
             required
-            style={{
-              display: "block",
-              width: "100%",
-              padding: "10px",
-              marginTop: "6px",
-            }}
+            className="text-input"
           />
         </div>
 
-        <div style={{ marginBottom: "16px" }}>
-          <label htmlFor="password">Password</label>
+        <div className="form-row">
+          <label htmlFor="password" className="form-label">
+            Password
+          </label>
           <input
             id="password"
             name="password"
@@ -82,23 +81,14 @@ export default function Login() {
             value={formData.password}
             onChange={handleChange}
             required
-            style={{
-              display: "block",
-              width: "100%",
-              padding: "10px",
-              marginTop: "6px",
-            }}
+            className="text-input"
           />
         </div>
 
-        {error && (
-          <p style={{ color: "crimson", marginBottom: "12px" }}>{error}</p>
-        )}
-        {success && (
-          <p style={{ color: "green", marginBottom: "12px" }}>{success}</p>
-        )}
+        {error && <p className="status-error">{error}</p>}
+        {success && <p className="status-success">{success}</p>}
 
-        <button type="submit" disabled={loading} style={{ padding: "10px 16px" }}>
+        <button type="submit" disabled={loading} className="primary-button">
           {loading ? "Signing in..." : "Login"}
         </button>
       </form>

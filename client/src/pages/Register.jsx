@@ -79,13 +79,15 @@ export default function Register() {
   };
 
   return (
-    <div style={{ maxWidth: "500px", margin: "40px auto", padding: "20px" }}>
-      <h1>Register</h1>
-      <p>Create an Echoes account.</p>
+    <div className="page-shell-narrow">
+      <h1 className="page-title">Register</h1>
+      <p className="page-intro">Create an Echoes account.</p>
 
-      <form onSubmit={handleSubmit}>
-        <div style={{ marginBottom: "16px" }}>
-          <label htmlFor="fullName">Full Name</label>
+      <form onSubmit={handleSubmit} className="page-card">
+        <div className="form-row">
+          <label htmlFor="fullName" className="form-label">
+            Full Name
+          </label>
           <input
             id="fullName"
             name="fullName"
@@ -93,17 +95,14 @@ export default function Register() {
             value={formData.fullName}
             onChange={handleChange}
             required
-            style={{
-              display: "block",
-              width: "100%",
-              padding: "10px",
-              marginTop: "6px",
-            }}
+            className="text-input"
           />
         </div>
 
-        <div style={{ marginBottom: "16px" }}>
-          <label htmlFor="email">Email</label>
+        <div className="form-row">
+          <label htmlFor="email" className="form-label">
+            Email
+          </label>
           <input
             id="email"
             name="email"
@@ -111,17 +110,14 @@ export default function Register() {
             value={formData.email}
             onChange={handleChange}
             required
-            style={{
-              display: "block",
-              width: "100%",
-              padding: "10px",
-              marginTop: "6px",
-            }}
+            className="text-input"
           />
         </div>
 
-        <div style={{ marginBottom: "16px" }}>
-          <label htmlFor="password">Password</label>
+        <div className="form-row">
+          <label htmlFor="password" className="form-label">
+            Password
+          </label>
           <input
             id="password"
             name="password"
@@ -129,19 +125,11 @@ export default function Register() {
             value={formData.password}
             onChange={handleChange}
             required
-            style={{
-              display: "block",
-              width: "100%",
-              padding: "10px",
-              marginTop: "6px",
-            }}
+            className="text-input"
           />
           <p
-            style={{
-              fontSize: "14px",
-              marginTop: "8px",
-              color: passwordIsWeak ? "#b91c1c" : "#555",
-            }}
+            className="helper-text"
+            style={{ color: passwordIsWeak ? "#b91c1c" : undefined }}
           >
             Please choose a password with at least 8 characters, including one
             uppercase letter, one lowercase letter, and one number. Echoes deals
@@ -150,39 +138,31 @@ export default function Register() {
           </p>
         </div>
 
-        <div style={{ marginBottom: "16px" }}>
-          <label htmlFor="role">Account Type</label>
+        <div className="form-row">
+          <label htmlFor="role" className="form-label">
+            Account Type
+          </label>
           <select
             id="role"
             name="role"
             value={formData.role}
             onChange={handleChange}
-            style={{
-              display: "block",
-              width: "100%",
-              padding: "10px",
-              marginTop: "6px",
-            }}
+            className="select-input"
           >
             <option value="representative">Authorised Representative</option>
             <option value="public">Public Contributor</option>
           </select>
         </div>
 
-        <p style={{ fontSize: "14px", color: "#555", marginBottom: "16px" }}>
+        <p className="helper-text">
           Moderator accounts are not available through public registration. If you
           are looking to become a moderator, please contact us at echoesmpc@gmail.com.
         </p>
 
-        {error && (
-          <p style={{ color: "crimson", marginBottom: "12px" }}>{error}</p>
-        )}
+        {error && <p className="status-error">{error}</p>}
+        {success && <p className="status-success">{success}</p>}
 
-        {success && (
-          <p style={{ color: "green", marginBottom: "12px" }}>{success}</p>
-        )}
-
-        <button type="submit" disabled={loading} style={{ padding: "10px 16px" }}>
+        <button type="submit" disabled={loading} className="primary-button">
           {loading ? "Creating account..." : "Register"}
         </button>
       </form>
