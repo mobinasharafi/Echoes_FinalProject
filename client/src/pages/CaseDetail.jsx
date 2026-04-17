@@ -610,6 +610,12 @@ export default function CaseDetail() {
           <strong>Status:</strong> {caseItem.status}
         </p>
 
+        {caseItem.createdBy?.fullName ? (
+          <p>
+            <strong>Posted by:</strong> {caseItem.createdBy.fullName}
+          </p>
+        ) : null}
+
         <p>
           <strong>Description:</strong> {caseItem.description}
         </p>
