@@ -47,6 +47,15 @@ export default function Home() {
             contained environment for everyone involved.
           </p>
 
+          <p className="home-paragraph">
+            If you want something a little gentler for a moment, you can visit
+            the{" "}
+            <Link to="/wellness" className="home-inline-button">
+              Wellness section
+            </Link>
+            .
+          </p>
+
           {isPublicUser ? (
             <p className="home-paragraph" style={{ fontWeight: 700 }}>
               If you want to submit a case, you need to register again as an

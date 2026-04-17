@@ -10,6 +10,7 @@ import Register from "./pages/Register.jsx";
 import MyCases from "./pages/MyCases.jsx";
 import Moderation from "./pages/Moderation.jsx";
 import PersonalInfo from "./pages/PersonalInfo.jsx";
+import Wellness from "./pages/Wellness.jsx";
 
 function AppContent() {
   const navigate = useNavigate();
@@ -37,6 +38,7 @@ function AppContent() {
       <header className="nav-bar">
         <Link to="/">Home</Link>
         <Link to="/browse">Browse</Link>
+        <Link to="/wellness">Wellness</Link>
 
         {isModerator && <Link to="/moderation">See Updates</Link>}
 
@@ -65,6 +67,7 @@ function AppContent() {
         <Route path="/my-cases" element={<MyCases />} />
         <Route path="/moderation" element={<Moderation />} />
         <Route path="/personal-info" element={<PersonalInfo />} />
+        <Route path="/wellness" element={<Wellness />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="*" element={<div>Not found</div>} />
