@@ -220,6 +220,22 @@ export default function Moderation() {
                         <strong>Other reason:</strong> {block.otherReason}
                       </p>
                     ) : null}
+
+                    <div className="owner-case-actions">
+                      {block.caseId?._id ? (
+                        <Link to={`/cases/${block.caseId._id}`}>View case</Link>
+                      ) : null}
+
+                      {block.blockedUser?._id ? (
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteUser(block.blockedUser._id)}
+                          className="danger-link-button"
+                        >
+                          Delete user
+                        </button>
+                      ) : null}
+                    </div>
                   </div>
                 ))}
               </div>
