@@ -54,6 +54,43 @@ router.get("/test", (req, res) => {
   });
 });
 
+// Lets a logged-in user check whether they are blocked on a specific case
+router.get("/case/:caseId/block-status", authMiddleware, async (req, res) => {
+  try {
+    const { caseId } = req.params;
+
+    const existingCase = await Case.findById(caseId);
+
+    if (!existingCase) {
+      return res.status(404).json({
+        ok: false,
+        message: "Case not found",
+      });
+    }
+
+    if (isCaseOwner(req.user, existingCase)) {
+      return res.json({
+        ok: true,
+        isBlocked: false,
+      });
+    }
+
+    const activeBlock = await getActiveCaseBlock(caseId, req.user._id);
+
+    res.json({
+      ok: true,
+      isBlocked: Boolean(activeBlock),
+      block: activeBlock || null,
+    });
+  } catch (err) {
+    res.status(500).json({
+      ok: false,
+      message: "Failed to check block status",
+      error: err.message,
+    });
+  }
+});
+
 // Get visible contributions for one case
 router.get("/case/:caseId", async (req, res) => {
   try {
@@ -124,7 +161,7 @@ router.post("/lead/:caseId", authMiddleware, async (req, res) => {
       return res.status(403).json({
         ok: false,
         message:
-          "You cannot post on this case anymore because the case owner has blocked you.",
+          "You can no longer contribute to this case because the case owner has blocked your interactions on it.",
       });
     }
 
@@ -188,7 +225,7 @@ router.post("/support/:caseId", authMiddleware, async (req, res) => {
       return res.status(403).json({
         ok: false,
         message:
-          "You cannot post on this case anymore because the case owner has blocked you.",
+          "You can no longer contribute to this case because the case owner has blocked your interactions on it.",
       });
     }
 
@@ -358,10 +395,10 @@ router.post("/:id/block-user", authMiddleware, async (req, res) => {
       });
     }
 
-    if (!canManageCaseContributions(req.user, existingCase)) {
+    if (!isCaseOwner(req.user, existingCase)) {
       return res.status(403).json({
         ok: false,
-        message: "You do not have permission to block users on this case",
+        message: "Only the case owner can block users on this case",
       });
     }
 

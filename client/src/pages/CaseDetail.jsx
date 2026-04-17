@@ -53,6 +53,7 @@ export default function CaseDetail() {
   const [openReplyBoxId, setOpenReplyBoxId] = useState("");
   const [openReportBoxId, setOpenReportBoxId] = useState("");
   const [openBlockBoxId, setOpenBlockBoxId] = useState("");
+  const [isBlockedOnCase, setIsBlockedOnCase] = useState(false);
   const [error, setError] = useState("");
   const [postError, setPostError] = useState("");
   const [postSuccess, setPostSuccess] = useState("");
@@ -79,6 +80,12 @@ export default function CaseDetail() {
     user &&
     caseItem &&
     (user.role === "moderator" || user.id === caseItem.createdBy?._id);
+
+  const canBlockUsers =
+    user &&
+    caseItem &&
+    user.role === "representative" &&
+    user.id === caseItem.createdBy?._id;
 
   const fetchCaseAndContributions = async () => {
     try {
@@ -119,6 +126,28 @@ export default function CaseDetail() {
   useEffect(() => {
     fetchCaseAndContributions();
   }, [id]);
+
+  useEffect(() => {
+    const fetchBlockStatus = async () => {
+      if (!user) {
+        setIsBlockedOnCase(false);
+        return;
+      }
+
+      try {
+        const data = await apiGet(
+          `/api/contributions/case/${id}/block-status`,
+          true
+        );
+
+        setIsBlockedOnCase(Boolean(data.isBlocked));
+      } catch {
+        setIsBlockedOnCase(false);
+      }
+    };
+
+    fetchBlockStatus();
+  }, [id, user]);
 
   useEffect(() => {
     if (isOwner) {
@@ -491,6 +520,14 @@ export default function CaseDetail() {
       otherReason: "",
     };
 
+    const confirmed = window.confirm(
+      "When you block this person, they will no longer be able to contribute to your case. Are you sure you want to block them?"
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
     setBlockingContributionId(contributionId);
     setOwnerActionError("");
     setOwnerActionSuccess("");
@@ -751,6 +788,11 @@ export default function CaseDetail() {
 
           {!user ? (
             <p>You need to be logged in to post a contribution.</p>
+          ) : isBlockedOnCase ? (
+            <p className="status-error">
+              You have been blocked by the case owner, so you can no longer
+              interact with this case.
+            </p>
           ) : (
             <div className="stack-list">
               <div className="sub-card">
@@ -896,7 +938,7 @@ export default function CaseDetail() {
                             </button>
                           ) : null}
 
-                          {isOwner && !isOwnContribution ? (
+                          {canBlockUsers && !isOwnContribution ? (
                             <button
                               type="button"
                               className="menu-dropdown-item"
