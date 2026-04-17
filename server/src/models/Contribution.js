@@ -1,3 +1,5 @@
+// Stores public case contributions, reports, and separate replies from the representative and moderator
+
 import mongoose from "mongoose";
 
 const contributionReportSchema = new mongoose.Schema(
@@ -52,7 +54,16 @@ const contributionSchema = new mongoose.Schema(
       trim: true,
       default: "",
     },
-    repliedAt: {
+    representativeRepliedAt: {
+      type: Date,
+      default: null,
+    },
+    moderatorReply: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+    moderatorRepliedAt: {
       type: Date,
       default: null,
     },

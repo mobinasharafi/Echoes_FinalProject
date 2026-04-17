@@ -1,4 +1,4 @@
-// Gives the moderator one place to review reports, blocks, users, and cases
+// Gives the moderator one place to review reports, blocks, and users
 
 import express from "express";
 import Contribution from "../models/Contribution.js";

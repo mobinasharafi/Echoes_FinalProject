@@ -296,7 +296,7 @@ router.post("/:id/report", authMiddleware, async (req, res) => {
         contribution.moderationStatus === "removed"
           ? "Contribution reported and automatically removed"
           : ignoredBySystem
-          ? "Your report was recorded, but this reason does not count toward automatic removal"
+          ? "Your report was recorded and will be reviewed, but it does not guarantee removal."
           : "Contribution reported successfully",
       contribution,
     });
@@ -459,12 +459,13 @@ router.patch("/:id/reply", authMiddleware, async (req, res) => {
       });
     }
 
-    contribution.representativeReply =
-      req.user.role === "moderator"
-        ? `Website Moderator: ${reply.trim()}`
-        : reply.trim();
-
-    contribution.repliedAt = new Date();
+    if (req.user.role === "moderator") {
+      contribution.moderatorReply = reply.trim();
+      contribution.moderatorRepliedAt = new Date();
+    } else {
+      contribution.representativeReply = reply.trim();
+      contribution.representativeRepliedAt = new Date();
+    }
 
     await contribution.save();
 
@@ -480,6 +481,75 @@ router.patch("/:id/reply", authMiddleware, async (req, res) => {
     res.status(500).json({
       ok: false,
       message: "Failed to post reply",
+      error: err.message,
+    });
+  }
+});
+
+// Delete only the current role's reply
+router.patch("/:id/delete-reply", authMiddleware, async (req, res) => {
+  try {
+    const contribution = await Contribution.findById(req.params.id);
+
+    if (!contribution) {
+      return res.status(404).json({
+        ok: false,
+        message: "Contribution not found",
+      });
+    }
+
+    const existingCase = await Case.findById(contribution.caseId);
+
+    if (!existingCase) {
+      return res.status(404).json({
+        ok: false,
+        message: "Case not found",
+      });
+    }
+
+    if (!canManageCaseContributions(req.user, existingCase)) {
+      return res.status(403).json({
+        ok: false,
+        message: "You do not have permission to delete this reply",
+      });
+    }
+
+    if (req.user.role === "moderator") {
+      if (!contribution.moderatorReply) {
+        return res.status(400).json({
+          ok: false,
+          message: "There is no moderator reply to delete",
+        });
+      }
+
+      contribution.moderatorReply = "";
+      contribution.moderatorRepliedAt = null;
+    } else {
+      if (!contribution.representativeReply) {
+        return res.status(400).json({
+          ok: false,
+          message: "There is no representative reply to delete",
+        });
+      }
+
+      contribution.representativeReply = "";
+      contribution.representativeRepliedAt = null;
+    }
+
+    await contribution.save();
+
+    const updatedContribution = await Contribution.findById(contribution._id)
+      .populate("createdBy", "fullName role");
+
+    res.json({
+      ok: true,
+      message: "Reply deleted successfully",
+      contribution: updatedContribution,
+    });
+  } catch (err) {
+    res.status(500).json({
+      ok: false,
+      message: "Failed to delete reply",
       error: err.message,
     });
   }

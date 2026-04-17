@@ -9,6 +9,7 @@ import Login from "./pages/Login.jsx";
 import Register from "./pages/Register.jsx";
 import MyCases from "./pages/MyCases.jsx";
 import Moderation from "./pages/Moderation.jsx";
+import PersonalInfo from "./pages/PersonalInfo.jsx";
 
 function AppContent() {
   const navigate = useNavigate();
@@ -18,8 +19,6 @@ function AppContent() {
 
   const isRepresentative = user && user.role === "representative";
   const isModerator = user && user.role === "moderator";
-  const canSubmitCases =
-    user && (user.role === "representative" || user.role === "moderator");
 
   const handleLogout = () => {
     const confirmed = window.confirm("Are you sure you want to log out?");
@@ -41,13 +40,15 @@ function AppContent() {
 
         {isModerator && <Link to="/moderation">See Updates</Link>}
 
-        <Link to="/submit">Submit Case</Link>
+        {isRepresentative && <Link to="/submit">Submit Case</Link>}
 
         {isRepresentative && <Link to="/my-cases">View My Active Cases</Link>}
         {isModerator && <Link to="/my-cases">View All Active Cases</Link>}
 
         {!user && <Link to="/login">Login</Link>}
         {!user && <Link to="/register">Register</Link>}
+
+        {user && <Link to="/personal-info">My Personal Information</Link>}
 
         {user && (
           <button type="button" onClick={handleLogout} className="nav-logout">
@@ -63,6 +64,7 @@ function AppContent() {
         <Route path="/submit" element={<SubmitCase />} />
         <Route path="/my-cases" element={<MyCases />} />
         <Route path="/moderation" element={<Moderation />} />
+        <Route path="/personal-info" element={<PersonalInfo />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="*" element={<div>Not found</div>} />

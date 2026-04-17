@@ -45,6 +45,7 @@ export default function CaseDetail() {
   const [updatingCase, setUpdatingCase] = useState(false);
   const [deletingCase, setDeletingCase] = useState(false);
   const [savingReplyId, setSavingReplyId] = useState("");
+  const [deletingReplyId, setDeletingReplyId] = useState("");
   const [deletingContributionId, setDeletingContributionId] = useState("");
   const [blockingContributionId, setBlockingContributionId] = useState("");
   const [openMenuId, setOpenMenuId] = useState("");
@@ -244,16 +245,24 @@ export default function CaseDetail() {
     }));
   };
 
+  const getInitialReplyDraft = (contribution) => {
+    if (user?.role === "moderator") {
+      return contribution.moderatorReply || "";
+    }
+
+    return contribution.representativeReply || "";
+  };
+
   const handleReplySubmit = async (contributionId) => {
     setSavingReplyId(contributionId);
     setOwnerActionError("");
     setOwnerActionSuccess("");
 
     try {
+      const contribution = contributions.find((item) => item._id === contributionId);
       const reply =
         replyDrafts[contributionId] ??
-        contributions.find((item) => item._id === contributionId)
-          ?.representativeReply ??
+        getInitialReplyDraft(contribution) ??
         "";
 
       const data = await apiPatch(
@@ -270,7 +279,10 @@ export default function CaseDetail() {
 
       setReplyDrafts((prev) => ({
         ...prev,
-        [contributionId]: data.contribution.representativeReply || "",
+        [contributionId]:
+          user?.role === "moderator"
+            ? data.contribution.moderatorReply || ""
+            : data.contribution.representativeReply || "",
       }));
 
       setOwnerActionSuccess("Reply saved successfully.");
@@ -279,6 +291,51 @@ export default function CaseDetail() {
       setOwnerActionError(err.message || "Failed to save reply");
     } finally {
       setSavingReplyId("");
+    }
+  };
+
+  const handleReplyDelete = async (contributionId) => {
+    const confirmed = window.confirm(
+      "Are you sure you want to delete this reply?"
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setDeletingReplyId(contributionId);
+    setOwnerActionError("");
+    setOwnerActionSuccess("");
+
+    try {
+      const data = await apiPatch(
+        `/api/contributions/${contributionId}/delete-reply`,
+        {},
+        true
+      );
+
+      setContributions((prev) =>
+        prev.map((item) =>
+          item._id === contributionId ? data.contribution : item
+        )
+      );
+
+      setReplyDrafts((prev) => ({
+        ...prev,
+        [contributionId]:
+          user?.role === "moderator"
+            ? data.contribution.moderatorReply || ""
+            : data.contribution.representativeReply || "",
+      }));
+
+      setOwnerActionSuccess("Reply deleted successfully.");
+      if (openReplyBoxId === contributionId) {
+        setOpenReplyBoxId("");
+      }
+    } catch (err) {
+      setOwnerActionError(err.message || "Failed to delete reply");
+    } finally {
+      setDeletingReplyId("");
     }
   };
 
@@ -387,11 +444,9 @@ export default function CaseDetail() {
 
       if (
         data.message ===
-        "Your report was recorded, but this reason does not count toward automatic removal"
+        "Your report was recorded and will be reviewed, but it does not guarantee removal."
       ) {
-        setPostError(
-          "Your report was recorded and will be reviewed, but it does not guarantee removal."
-        );
+        setPostError(data.message);
         setPostSuccess("");
       } else {
         setPostSuccess(data.message || "Contribution reported successfully.");
@@ -785,16 +840,10 @@ export default function CaseDetail() {
                 otherReason: "",
               };
 
-              const isModeratorReply =
-                typeof contribution.representativeReply === "string" &&
-                contribution.representativeReply.startsWith("Website Moderator:");
-
-              const visibleReply = isModeratorReply
-                ? contribution.representativeReply.replace(
-                    "Website Moderator:",
-                    ""
-                  ).trim()
-                : contribution.representativeReply;
+              const hasOwnReply =
+                user?.role === "moderator"
+                  ? Boolean(contribution.moderatorReply)
+                  : Boolean(contribution.representativeReply);
 
               return (
                 <div key={contribution._id} className="sub-card contribution-card">
@@ -983,13 +1032,18 @@ export default function CaseDetail() {
                   {contribution.representativeReply ? (
                     <div className="sub-card" style={{ marginTop: "14px" }}>
                       <p>
-                        <strong>
-                          {isModeratorReply
-                            ? "Reply from Website Moderator"
-                            : "Reply from representative"}
-                        </strong>
+                        <strong>Reply from representative</strong>
                       </p>
-                      <p>{visibleReply}</p>
+                      <p>{contribution.representativeReply}</p>
+                    </div>
+                  ) : null}
+
+                  {contribution.moderatorReply ? (
+                    <div className="sub-card" style={{ marginTop: "14px" }}>
+                      <p>
+                        <strong>Reply from Website Moderator</strong>
+                      </p>
+                      <p>{contribution.moderatorReply}</p>
                     </div>
                   ) : null}
 
@@ -1004,8 +1058,25 @@ export default function CaseDetail() {
                         }
                         className="owner-link-button"
                       >
-                        Reply
+                        {user?.role === "moderator"
+                          ? "Reply as Website Moderator"
+                          : "Reply"}
                       </button>
+
+                      {hasOwnReply ? (
+                        <button
+                          type="button"
+                          onClick={() => handleReplyDelete(contribution._id)}
+                          disabled={deletingReplyId === contribution._id}
+                          className="danger-link-button"
+                        >
+                          {deletingReplyId === contribution._id
+                            ? "Deleting reply..."
+                            : user?.role === "moderator"
+                            ? "Delete moderator reply"
+                            : "Delete representative reply"}
+                        </button>
+                      ) : null}
 
                       <button
                         type="button"
@@ -1029,13 +1100,15 @@ export default function CaseDetail() {
                         className="form-label"
                         style={{ textAlign: "left" }}
                       >
-                        Reply
+                        {user?.role === "moderator"
+                          ? "Website Moderator reply"
+                          : "Reply"}
                       </label>
                       <textarea
                         id={`reply-${contribution._id}`}
                         value={
                           replyDrafts[contribution._id] ??
-                          visibleReply ??
+                          getInitialReplyDraft(contribution) ??
                           ""
                         }
                         onChange={(event) =>

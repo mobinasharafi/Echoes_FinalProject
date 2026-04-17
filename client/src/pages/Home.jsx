@@ -1,6 +1,12 @@
+// Home page for Echoes with the main explanation and quick guidance
+
 import { Link } from "react-router-dom";
 
 export default function Home() {
+  const storedUser = localStorage.getItem("user");
+  const user = storedUser ? JSON.parse(storedUser) : null;
+  const isPublicUser = user && user.role === "public";
+
   return (
     <div className="page-shell">
       <div className="home-page-content">
@@ -40,6 +46,14 @@ export default function Home() {
             coherent, preserve clarity around the case, and offer a more
             contained environment for everyone involved.
           </p>
+
+          {isPublicUser ? (
+            <p className="home-paragraph" style={{ fontWeight: 700 }}>
+              If you want to submit a case, you need to register again as an
+              authorised representative. Public contributor accounts cannot
+              create case records.
+            </p>
+          ) : null}
         </div>
 
         <div className="home-section">
