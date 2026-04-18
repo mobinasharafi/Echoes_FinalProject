@@ -5,11 +5,20 @@ import { useNavigate, useParams } from "react-router-dom";
 import {
   apiDelete,
   apiGet,
-  apiPatch,
   apiPost,
   copyText,
   getFileUrl,
 } from "../api.js";
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "";
+
+function buildUrl(path) {
+  if (!API_BASE_URL) {
+    return path;
+  }
+
+  return `${API_BASE_URL}${path}`;
+}
 
 const reportReasonOptions = [
   { value: "harassment", label: "Harassment" },
@@ -62,6 +71,7 @@ export default function CaseDetail() {
   const [replyDrafts, setReplyDrafts] = useState({});
   const [reportDrafts, setReportDrafts] = useState({});
   const [blockDrafts, setBlockDrafts] = useState({});
+  const [editPhotoFile, setEditPhotoFile] = useState(null);
   const [editForm, setEditForm] = useState({
     personName: "",
     age: "",
@@ -75,6 +85,7 @@ export default function CaseDetail() {
 
   const storedUser = localStorage.getItem("user");
   const user = storedUser ? JSON.parse(storedUser) : null;
+  const token = localStorage.getItem("token");
 
   const isOwner =
     user &&
@@ -116,6 +127,7 @@ export default function CaseDetail() {
         region: foundCase.region || "",
         status: foundCase.status || "open",
       });
+      setEditPhotoFile(null);
     } catch (err) {
       setError(err.message || "Failed to load case details");
     } finally {
@@ -210,6 +222,11 @@ export default function CaseDetail() {
     }));
   };
 
+  const handleEditPhotoChange = (event) => {
+    const selectedFile = event.target.files[0] || null;
+    setEditPhotoFile(selectedFile);
+  };
+
   const handleCaseUpdate = async (event) => {
     event.preventDefault();
     setUpdatingCase(true);
@@ -217,7 +234,37 @@ export default function CaseDetail() {
     setOwnerActionSuccess("");
 
     try {
-      const data = await apiPatch(`/api/cases/${id}`, editForm, true);
+      const updateData = new FormData();
+
+      updateData.append("personName", editForm.personName);
+      updateData.append("age", editForm.age);
+      updateData.append("description", editForm.description);
+      updateData.append("lastSeenDate", editForm.lastSeenDate);
+      updateData.append("lastSeenLocation", editForm.lastSeenLocation);
+      updateData.append("city", editForm.city);
+      updateData.append("region", editForm.region);
+      updateData.append("status", editForm.status);
+
+      if (editPhotoFile) {
+        updateData.append("photo", editPhotoFile);
+      }
+
+      const response = await fetch(buildUrl(`/api/cases/${id}`), {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: updateData,
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data.error || data.message || "Failed to update case"
+        );
+      }
+
       const updatedCase = data.case;
 
       setCaseItem(updatedCase);
@@ -236,6 +283,7 @@ export default function CaseDetail() {
         region: updatedCase.region || "",
         status: updatedCase.status || "open",
       });
+      setEditPhotoFile(null);
       setOwnerActionSuccess("Case updated successfully.");
       setShowEditForm(false);
     } catch (err) {
@@ -767,6 +815,24 @@ export default function CaseDetail() {
                 required
                 className="text-area"
               />
+            </div>
+
+            <div className="form-row">
+              <label htmlFor="editPhoto" className="form-label">
+                Change photo
+              </label>
+              <input
+                id="editPhoto"
+                name="editPhoto"
+                type="file"
+                accept="image/png,image/jpeg,image/jpg,image/webp"
+                onChange={handleEditPhotoChange}
+                className="file-input"
+              />
+              <p className="helper-text">
+                Upload a new JPG, PNG, or WEBP image only if you want to replace
+                the current one.
+              </p>
             </div>
 
             <div className="inline-actions">
