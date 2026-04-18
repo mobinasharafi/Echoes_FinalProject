@@ -1,18 +1,8 @@
-// Handles local image uploads for case photos
+// Handles image uploads before they are sent to permanent storage
 
 import multer from "multer";
-import path from "path";
 
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, "uploads/");
-  },
-  filename: function (req, file, cb) {
-    const timestamp = Date.now();
-    const safeName = file.originalname.replace(/\s+/g, "-");
-    cb(null, `${timestamp}-${safeName}`);
-  },
-});
+const storage = multer.memoryStorage();
 
 function fileFilter(req, file, cb) {
   const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp"];

@@ -3,6 +3,16 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "";
+
+function buildUrl(path) {
+  if (!API_BASE_URL) {
+    return path;
+  }
+
+  return `${API_BASE_URL}${path}`;
+}
+
 export default function SubmitCase() {
   const navigate = useNavigate();
 
@@ -64,7 +74,7 @@ export default function SubmitCase() {
         submitData.append("photo", photoFile);
       }
 
-      const response = await fetch("/api/cases", {
+      const response = await fetch(buildUrl("/api/cases"), {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,

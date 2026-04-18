@@ -1,5 +1,16 @@
 // Keeps API requests and shared URL helpers in one place
 
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL || "";
+
+function buildUrl(path) {
+  if (!API_BASE_URL) {
+    return path;
+  }
+
+  return `${API_BASE_URL}${path}`;
+}
+
 function getAuthHeaders(isJson = true) {
   const token = localStorage.getItem("token");
 
@@ -48,7 +59,7 @@ async function handleResponse(res) {
 }
 
 export async function apiGet(path, useAuth = false) {
-  const res = await fetch(path, {
+  const res = await fetch(buildUrl(path), {
     headers: useAuth ? getAuthHeaders(false) : undefined,
   });
 
@@ -56,7 +67,7 @@ export async function apiGet(path, useAuth = false) {
 }
 
 export async function apiPost(path, body, useAuth = false) {
-  const res = await fetch(path, {
+  const res = await fetch(buildUrl(path), {
     method: "POST",
     headers: useAuth
       ? getAuthHeaders(true)
@@ -70,7 +81,7 @@ export async function apiPost(path, body, useAuth = false) {
 }
 
 export async function apiPatch(path, body, useAuth = false) {
-  const res = await fetch(path, {
+  const res = await fetch(buildUrl(path), {
     method: "PATCH",
     headers: useAuth
       ? getAuthHeaders(true)
@@ -84,7 +95,7 @@ export async function apiPatch(path, body, useAuth = false) {
 }
 
 export async function apiDelete(path, useAuth = false) {
-  const res = await fetch(path, {
+  const res = await fetch(buildUrl(path), {
     method: "DELETE",
     headers: useAuth ? getAuthHeaders(false) : undefined,
   });

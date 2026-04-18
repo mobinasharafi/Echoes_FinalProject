@@ -1,6 +1,7 @@
 // Handles case-related routes like creating, listing, viewing, editing, and deleting missing person cases
 
 import express from "express";
+import { put } from "@vercel/blob";
 import Case from "../models/Case.js";
 import Contribution from "../models/Contribution.js";
 import authMiddleware from "../middleware/authMiddleware.js";
@@ -19,6 +20,23 @@ function canManageCase(user, foundCase) {
   }
 
   return String(foundCase.createdBy) === String(user._id);
+}
+
+async function uploadCasePhoto(file) {
+  if (!file) {
+    return "";
+  }
+
+  const timestamp = Date.now();
+  const safeName = file.originalname.replace(/\s+/g, "-");
+  const blobName = `case-photos/${timestamp}-${safeName}`;
+
+  const blob = await put(blobName, file.buffer, {
+    access: "public",
+    contentType: file.mimetype,
+  });
+
+  return blob.url;
 }
 
 // Turn a written place into map coordinates before saving the case
@@ -183,7 +201,7 @@ router.post(
         });
       }
 
-      const photoUrl = req.file ? `/uploads/${req.file.filename}` : "";
+      const photoUrl = req.file ? await uploadCasePhoto(req.file) : "";
 
       const coordinates = await geocodeLocation(
         lastSeenLocation.trim(),
@@ -317,7 +335,7 @@ router.patch(
       }
 
       if (req.file) {
-        foundCase.photoUrl = `/uploads/${req.file.filename}`;
+        foundCase.photoUrl = await uploadCasePhoto(req.file);
       }
 
       await foundCase.save();
