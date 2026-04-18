@@ -46,6 +46,46 @@ async function getActiveCaseBlock(caseId, userId) {
   });
 }
 
+// The original commenter can only join the reply thread after the representative
+// has replied at least once, either through the older reply field or the new thread.
+function hasRepresentativeResponse(contribution) {
+  if (contribution.representativeReply?.trim()) {
+    return true;
+  }
+
+  return contribution.replies.some(
+    (reply) => reply.role === "representative"
+  );
+}
+
+function canJoinReplyThread(user, contribution, foundCase) {
+  if (!user || !contribution || !foundCase) {
+    return false;
+  }
+
+  if (user.role === "moderator") {
+    return true;
+  }
+
+  if (isCaseOwner(user, foundCase)) {
+    return true;
+  }
+
+  return String(contribution.createdBy) === String(user._id);
+}
+
+function getReplyRole(user, foundCase) {
+  if (user.role === "moderator") {
+    return "moderator";
+  }
+
+  if (isCaseOwner(user, foundCase)) {
+    return "representative";
+  }
+
+  return user.role;
+}
+
 // Temporary check that contribution routes are connected properly
 router.get("/test", (req, res) => {
   res.json({
@@ -110,7 +150,8 @@ router.get("/case/:caseId", async (req, res) => {
       moderationStatus: "approved",
     })
       .sort({ createdAt: -1 })
-      .populate("createdBy", "fullName role");
+      .populate("createdBy", "fullName role")
+      .populate("replies.createdBy", "fullName role");
 
     res.json({
       ok: true,
@@ -174,7 +215,8 @@ router.post("/lead/:caseId", authMiddleware, async (req, res) => {
     });
 
     const populatedContribution = await Contribution.findById(contribution._id)
-      .populate("createdBy", "fullName role");
+      .populate("createdBy", "fullName role")
+      .populate("replies.createdBy", "fullName role");
 
     res.status(201).json({
       ok: true,
@@ -238,7 +280,8 @@ router.post("/support/:caseId", authMiddleware, async (req, res) => {
     });
 
     const populatedContribution = await Contribution.findById(contribution._id)
-      .populate("createdBy", "fullName role");
+      .populate("createdBy", "fullName role")
+      .populate("replies.createdBy", "fullName role");
 
     res.status(201).json({
       ok: true,
@@ -249,6 +292,94 @@ router.post("/support/:caseId", authMiddleware, async (req, res) => {
     res.status(500).json({
       ok: false,
       message: "Failed to submit support message",
+      error: err.message,
+    });
+  }
+});
+
+// Adding a threaded reply to an existing contribution
+router.post("/:id/thread-reply", authMiddleware, async (req, res) => {
+  try {
+    const { message } = req.body;
+
+    if (!message || !message.trim()) {
+      return res.status(400).json({
+        ok: false,
+        message: "Reply message is required",
+      });
+    }
+
+    const contribution = await Contribution.findById(req.params.id);
+
+    if (!contribution) {
+      return res.status(404).json({
+        ok: false,
+        message: "Contribution not found",
+      });
+    }
+
+    const existingCase = await Case.findById(contribution.caseId);
+
+    if (!existingCase) {
+      return res.status(404).json({
+        ok: false,
+        message: "Case not found",
+      });
+    }
+
+    if (!canJoinReplyThread(req.user, contribution, existingCase)) {
+      return res.status(403).json({
+        ok: false,
+        message: "You do not have permission to reply in this thread",
+      });
+    }
+
+    const isOriginalCommenter =
+      String(contribution.createdBy) === String(req.user._id);
+
+    if (isOriginalCommenter) {
+      const activeBlock = await getActiveCaseBlock(existingCase._id, req.user._id);
+
+      if (activeBlock) {
+        return res.status(403).json({
+          ok: false,
+          message:
+            "You can no longer contribute to this case because the case owner has blocked your interactions on it.",
+        });
+      }
+
+      if (!hasRepresentativeResponse(contribution)) {
+        return res.status(403).json({
+          ok: false,
+          message:
+            "You can reply only after the authorised representative has responded first.",
+        });
+      }
+    }
+
+    const replyRole = getReplyRole(req.user, existingCase);
+
+    contribution.replies.push({
+      createdBy: req.user._id,
+      role: replyRole,
+      message: message.trim(),
+    });
+
+    await contribution.save();
+
+    const updatedContribution = await Contribution.findById(contribution._id)
+      .populate("createdBy", "fullName role")
+      .populate("replies.createdBy", "fullName role");
+
+    res.status(201).json({
+      ok: true,
+      message: "Reply posted successfully",
+      contribution: updatedContribution,
+    });
+  } catch (err) {
+    res.status(500).json({
+      ok: false,
+      message: "Failed to post threaded reply",
       error: err.message,
     });
   }
@@ -496,6 +627,8 @@ router.patch("/:id/reply", authMiddleware, async (req, res) => {
       });
     }
 
+    // Keeping the older single-reply fields so the current frontend does not break,
+    // whilst also writing the same message into the threaded replies array.
     if (req.user.role === "moderator") {
       contribution.moderatorReply = reply.trim();
       contribution.moderatorRepliedAt = new Date();
@@ -504,10 +637,17 @@ router.patch("/:id/reply", authMiddleware, async (req, res) => {
       contribution.representativeRepliedAt = new Date();
     }
 
+    contribution.replies.push({
+      createdBy: req.user._id,
+      role: getReplyRole(req.user, existingCase),
+      message: reply.trim(),
+    });
+
     await contribution.save();
 
     const updatedContribution = await Contribution.findById(contribution._id)
-      .populate("createdBy", "fullName role");
+      .populate("createdBy", "fullName role")
+      .populate("replies.createdBy", "fullName role");
 
     res.json({
       ok: true,
@@ -576,7 +716,8 @@ router.patch("/:id/delete-reply", authMiddleware, async (req, res) => {
     await contribution.save();
 
     const updatedContribution = await Contribution.findById(contribution._id)
-      .populate("createdBy", "fullName role");
+      .populate("createdBy", "fullName role")
+      .populate("replies.createdBy", "fullName role");
 
     res.json({
       ok: true,
@@ -647,7 +788,8 @@ router.get(
       })
         .sort({ createdAt: -1 })
         .populate("caseId", "personName city region")
-        .populate("createdBy", "fullName email role");
+        .populate("createdBy", "fullName email role")
+        .populate("replies.createdBy", "fullName role");
 
       res.json({
         ok: true,
@@ -686,7 +828,8 @@ router.patch(
         { new: true }
       )
         .populate("caseId", "personName city region")
-        .populate("createdBy", "fullName email role");
+        .populate("createdBy", "fullName email role")
+        .populate("replies.createdBy", "fullName role");
 
       if (!contribution) {
         return res.status(404).json({

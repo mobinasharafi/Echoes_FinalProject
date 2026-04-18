@@ -27,6 +27,30 @@ const contributionReportSchema = new mongoose.Schema(
   }
 );
 
+// This stores the back-and-forth conversation under one original contribution
+const contributionReplySchema = new mongoose.Schema(
+  {
+    createdBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
+    role: {
+      type: String,
+      enum: ["public", "representative", "moderator"],
+      required: true,
+    },
+    message: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+  },
+  {
+    timestamps: true,
+  }
+);
+
 const contributionSchema = new mongoose.Schema(
   {
     caseId: {
@@ -67,6 +91,8 @@ const contributionSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    // Keeping the older single-reply fields above for compatibility but this array is what lets the conversation continue back and forth
+    replies: [contributionReplySchema],
     reports: [contributionReportSchema],
     actionableReportCount: {
       type: Number,

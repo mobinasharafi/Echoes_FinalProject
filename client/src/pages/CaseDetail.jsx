@@ -41,6 +41,28 @@ const blockReasonOptions = [
   { value: "other", label: "Other" },
 ];
 
+function hasRepresentativeResponse(contribution) {
+  if (contribution.representativeReply?.trim()) {
+    return true;
+  }
+
+  return (contribution.replies || []).some(
+    (reply) => reply.role === "representative"
+  );
+}
+
+function getReplyHeading(replyRole, replyUserName) {
+  if (replyRole === "representative") {
+    return "Reply from authorised representative";
+  }
+
+  if (replyRole === "moderator") {
+    return "Reply from Website Moderator";
+  }
+
+  return `Reply from ${replyUserName || "Echoes user"}`;
+}
+
 export default function CaseDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -54,24 +76,23 @@ export default function CaseDetail() {
   const [postingSupport, setPostingSupport] = useState(false);
   const [updatingCase, setUpdatingCase] = useState(false);
   const [deletingCase, setDeletingCase] = useState(false);
-  const [savingReplyId, setSavingReplyId] = useState("");
-  const [deletingReplyId, setDeletingReplyId] = useState("");
   const [deletingContributionId, setDeletingContributionId] = useState("");
   const [blockingContributionId, setBlockingContributionId] = useState("");
+  const [postingThreadReplyId, setPostingThreadReplyId] = useState("");
   const [openMenuId, setOpenMenuId] = useState("");
   const [showEditForm, setShowEditForm] = useState(false);
-  const [openReplyBoxId, setOpenReplyBoxId] = useState("");
   const [openReportBoxId, setOpenReportBoxId] = useState("");
   const [openBlockBoxId, setOpenBlockBoxId] = useState("");
+  const [openThreadReplyBoxId, setOpenThreadReplyBoxId] = useState("");
   const [isBlockedOnCase, setIsBlockedOnCase] = useState(false);
   const [error, setError] = useState("");
   const [postError, setPostError] = useState("");
   const [postSuccess, setPostSuccess] = useState("");
   const [ownerActionError, setOwnerActionError] = useState("");
   const [ownerActionSuccess, setOwnerActionSuccess] = useState("");
-  const [replyDrafts, setReplyDrafts] = useState({});
   const [reportDrafts, setReportDrafts] = useState({});
   const [blockDrafts, setBlockDrafts] = useState({});
+  const [threadReplyDrafts, setThreadReplyDrafts] = useState({});
   const [editPhotoFile, setEditPhotoFile] = useState(null);
   const [editForm, setEditForm] = useState({
     personName: "",
@@ -316,107 +337,6 @@ export default function CaseDetail() {
     }
   };
 
-  const handleReplyDraftChange = (contributionId, value) => {
-    setReplyDrafts((prev) => ({
-      ...prev,
-      [contributionId]: value,
-    }));
-  };
-
-  const getInitialReplyDraft = (contribution) => {
-    if (user?.role === "moderator") {
-      return contribution.moderatorReply || "";
-    }
-
-    return contribution.representativeReply || "";
-  };
-
-  const handleReplySubmit = async (contributionId) => {
-    setSavingReplyId(contributionId);
-    setOwnerActionError("");
-    setOwnerActionSuccess("");
-
-    try {
-      const contribution = contributions.find((item) => item._id === contributionId);
-      const reply =
-        replyDrafts[contributionId] ??
-        getInitialReplyDraft(contribution) ??
-        "";
-
-      const data = await apiPatch(
-        `/api/contributions/${contributionId}/reply`,
-        { reply },
-        true
-      );
-
-      setContributions((prev) =>
-        prev.map((item) =>
-          item._id === contributionId ? data.contribution : item
-        )
-      );
-
-      setReplyDrafts((prev) => ({
-        ...prev,
-        [contributionId]:
-          user?.role === "moderator"
-            ? data.contribution.moderatorReply || ""
-            : data.contribution.representativeReply || "",
-      }));
-
-      setOwnerActionSuccess("Reply saved successfully.");
-      setOpenReplyBoxId("");
-    } catch (err) {
-      setOwnerActionError(err.message || "Failed to save reply");
-    } finally {
-      setSavingReplyId("");
-    }
-  };
-
-  const handleReplyDelete = async (contributionId) => {
-    const confirmed = window.confirm(
-      "Are you sure you want to delete this reply?"
-    );
-
-    if (!confirmed) {
-      return;
-    }
-
-    setDeletingReplyId(contributionId);
-    setOwnerActionError("");
-    setOwnerActionSuccess("");
-
-    try {
-      const data = await apiPatch(
-        `/api/contributions/${contributionId}/delete-reply`,
-        {},
-        true
-      );
-
-      setContributions((prev) =>
-        prev.map((item) =>
-          item._id === contributionId ? data.contribution : item
-        )
-      );
-
-      setReplyDrafts((prev) => ({
-        ...prev,
-        [contributionId]:
-          user?.role === "moderator"
-            ? data.contribution.moderatorReply || ""
-            : data.contribution.representativeReply || "",
-      }));
-
-      setOwnerActionSuccess("Reply deleted successfully.");
-      if (openReplyBoxId === contributionId) {
-        setOpenReplyBoxId("");
-      }
-    } catch (err) {
-      setOwnerActionError(err.message || "Failed to delete reply");
-    } finally {
-      setDeletingReplyId("");
-    }
-  };
-
   const handleContributionDelete = async (contributionId) => {
     const confirmed = window.confirm(
       "Are you sure you want to delete this contribution?"
@@ -598,6 +518,85 @@ export default function CaseDetail() {
       setOwnerActionError(err.message || "Failed to block user.");
     } finally {
       setBlockingContributionId("");
+    }
+  };
+
+  const handleThreadReplyDraftChange = (contributionId, value) => {
+    setThreadReplyDrafts((prev) => ({
+      ...prev,
+      [contributionId]: value,
+    }));
+  };
+
+  // The commenter can only join after the representative has replied once.
+  // The backend checks this too, but this keeps the UI cleaner.
+  const canUserReplyInThread = (contribution) => {
+    if (!user) {
+      return false;
+    }
+
+    if (isOwner) {
+      return true;
+    }
+
+    const isOriginalCommenter =
+      user.id === contribution.createdBy?._id;
+
+    if (!isOriginalCommenter) {
+      return false;
+    }
+
+    return hasRepresentativeResponse(contribution);
+  };
+
+  const handleThreadReplySubmit = async (contributionId) => {
+    const message = (threadReplyDrafts[contributionId] || "").trim();
+
+    if (!message) {
+      setOwnerActionError("");
+      setPostError("Reply message is required.");
+      return;
+    }
+
+    setPostingThreadReplyId(contributionId);
+    setOwnerActionError("");
+    setOwnerActionSuccess("");
+    setPostError("");
+    setPostSuccess("");
+
+    try {
+      const data = await apiPost(
+        `/api/contributions/${contributionId}/thread-reply`,
+        { message },
+        true
+      );
+
+      setContributions((prev) =>
+        prev.map((item) =>
+          item._id === contributionId ? data.contribution : item
+        )
+      );
+
+      setThreadReplyDrafts((prev) => ({
+        ...prev,
+        [contributionId]: "",
+      }));
+
+      setOpenThreadReplyBoxId("");
+
+      if (isOwner) {
+        setOwnerActionSuccess("Reply posted successfully.");
+      } else {
+        setPostSuccess("Reply posted successfully.");
+      }
+    } catch (err) {
+      if (isOwner) {
+        setOwnerActionError(err.message || "Failed to post reply.");
+      } else {
+        setPostError(err.message || "Failed to post reply.");
+      }
+    } finally {
+      setPostingThreadReplyId("");
     }
   };
 
@@ -947,6 +946,11 @@ export default function CaseDetail() {
               const isOwnContribution =
                 user && user.id === contribution.createdBy?._id;
 
+              const isOriginalCommenter =
+                user && user.id === contribution.createdBy?._id;
+
+              const canReplyInThread = canUserReplyInThread(contribution);
+
               const reportDraftValue =
                 reportDrafts[contribution._id] || "harassment";
 
@@ -955,10 +959,7 @@ export default function CaseDetail() {
                 otherReason: "",
               };
 
-              const hasOwnReply =
-                user?.role === "moderator"
-                  ? Boolean(contribution.moderatorReply)
-                  : Boolean(contribution.representativeReply);
+              const threadReplies = contribution.replies || [];
 
               return (
                 <div key={contribution._id} className="sub-card contribution-card">
@@ -1144,10 +1145,12 @@ export default function CaseDetail() {
                     Posted by {contribution.createdBy?.fullName || "Echoes user"}
                   </p>
 
+                  {/* These older reply fields are still shown so nothing disappears
+                     from contributions that were created before the threaded reply system */}
                   {contribution.representativeReply ? (
                     <div className="sub-card" style={{ marginTop: "14px" }}>
                       <p>
-                        <strong>Reply from representative</strong>
+                        <strong>Reply from authorised representative</strong>
                       </p>
                       <p>{contribution.representativeReply}</p>
                     </div>
@@ -1162,72 +1165,85 @@ export default function CaseDetail() {
                     </div>
                   ) : null}
 
-                  {isOwner ? (
-                    <div className="contribution-owner-actions">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setOpenReplyBoxId((prev) =>
-                            prev === contribution._id ? "" : contribution._id
-                          )
-                        }
-                        className="owner-link-button"
-                      >
-                        {user?.role === "moderator"
-                          ? "Reply as Website Moderator"
-                          : "Reply"}
-                      </button>
-
-                      {hasOwnReply ? (
-                        <button
-                          type="button"
-                          onClick={() => handleReplyDelete(contribution._id)}
-                          disabled={deletingReplyId === contribution._id}
-                          className="danger-link-button"
+                  {threadReplies.length > 0 ? (
+                    <div style={{ marginTop: "14px" }}>
+                      {threadReplies.map((reply) => (
+                        <div
+                          key={reply._id}
+                          className="sub-card"
+                          style={{ marginTop: "10px" }}
                         >
-                          {deletingReplyId === contribution._id
-                            ? "Deleting reply..."
-                            : user?.role === "moderator"
-                            ? "Delete moderator reply"
-                            : "Delete representative reply"}
-                        </button>
-                      ) : null}
-
-                      <button
-                        type="button"
-                        onClick={() =>
-                          handleContributionDelete(contribution._id)
-                        }
-                        disabled={deletingContributionId === contribution._id}
-                        className="danger-link-button"
-                      >
-                        {deletingContributionId === contribution._id
-                          ? "Deleting..."
-                          : "Delete contribution"}
-                      </button>
+                          <p>
+                            <strong>
+                              {getReplyHeading(
+                                reply.role,
+                                reply.createdBy?.fullName
+                              )}
+                            </strong>
+                          </p>
+                          <p>{reply.message}</p>
+                          <p className="helper-text">
+                            {reply.createdAt
+                              ? new Date(reply.createdAt).toLocaleString()
+                              : ""}
+                          </p>
+                        </div>
+                      ))}
                     </div>
                   ) : null}
 
-                  {isOwner && openReplyBoxId === contribution._id ? (
+                  {(isOwner || isOriginalCommenter) ? (
+                    <div className="contribution-owner-actions">
+                      {canReplyInThread ? (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setOpenThreadReplyBoxId((prev) =>
+                              prev === contribution._id ? "" : contribution._id
+                            )
+                          }
+                          className="owner-link-button"
+                        >
+                          Reply
+                        </button>
+                      ) : isOriginalCommenter ? (
+                        <p className="helper-text">
+                          You can reply once the authorised representative has
+                          responded.
+                        </p>
+                      ) : null}
+
+                      {isOwner ? (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            handleContributionDelete(contribution._id)
+                          }
+                          disabled={deletingContributionId === contribution._id}
+                          className="danger-link-button"
+                        >
+                          {deletingContributionId === contribution._id
+                            ? "Deleting..."
+                            : "Delete contribution"}
+                        </button>
+                      ) : null}
+                    </div>
+                  ) : null}
+
+                  {openThreadReplyBoxId === contribution._id ? (
                     <div style={{ marginTop: "16px" }}>
                       <label
-                        htmlFor={`reply-${contribution._id}`}
+                        htmlFor={`thread-reply-${contribution._id}`}
                         className="form-label"
                         style={{ textAlign: "left" }}
                       >
-                        {user?.role === "moderator"
-                          ? "Website Moderator reply"
-                          : "Reply"}
+                        Reply
                       </label>
                       <textarea
-                        id={`reply-${contribution._id}`}
-                        value={
-                          replyDrafts[contribution._id] ??
-                          getInitialReplyDraft(contribution) ??
-                          ""
-                        }
+                        id={`thread-reply-${contribution._id}`}
+                        value={threadReplyDrafts[contribution._id] || ""}
                         onChange={(event) =>
-                          handleReplyDraftChange(
+                          handleThreadReplyDraftChange(
                             contribution._id,
                             event.target.value
                           )
@@ -1242,13 +1258,13 @@ export default function CaseDetail() {
                       >
                         <button
                           type="button"
-                          onClick={() => handleReplySubmit(contribution._id)}
-                          disabled={savingReplyId === contribution._id}
+                          onClick={() => handleThreadReplySubmit(contribution._id)}
+                          disabled={postingThreadReplyId === contribution._id}
                           className="primary-button"
                         >
-                          {savingReplyId === contribution._id
-                            ? "Saving..."
-                            : "Save reply"}
+                          {postingThreadReplyId === contribution._id
+                            ? "Posting..."
+                            : "Post reply"}
                         </button>
                       </div>
                     </div>
