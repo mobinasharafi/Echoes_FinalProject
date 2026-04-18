@@ -41,6 +41,18 @@ function MapAutoFit({ casesWithCoordinates }) {
   return null;
 }
 
+function shortenDescription(text, maxLength = 140) {
+  if (!text) {
+    return "";
+  }
+
+  if (text.length <= maxLength) {
+    return text;
+  }
+
+  return `${text.slice(0, maxLength).trim()}...`;
+}
+
 export default function Browse() {
   const [cases, setCases] = useState([]);
   const [city, setCity] = useState("");
@@ -150,7 +162,7 @@ export default function Browse() {
                 className="browse-map"
               >
                 <TileLayer
-                  attribution='&copy; OpenStreetMap contributors'
+                  attribution="&copy; OpenStreetMap contributors"
                   url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                 />
                 <MapAutoFit casesWithCoordinates={casesWithCoordinates} />
@@ -206,13 +218,21 @@ export default function Browse() {
             const imageUrl = caseItem.photoUrl ? getFileUrl(caseItem.photoUrl) : "";
 
             return (
-              <div key={caseItem._id} className="page-card browse-case-card">
+              <div
+                key={caseItem._id}
+                className="page-card browse-case-card"
+                style={{ width: "92%", margin: "0 auto" }}
+              >
                 {imageUrl ? (
-                  <div className="case-image-wrap browse-case-image-wrap">
+                  <div
+                    className="case-image-wrap browse-case-image-wrap"
+                    style={{ maxHeight: "220px", overflow: "hidden" }}
+                  >
                     <img
                       src={imageUrl}
                       alt={caseItem.personName}
                       className="case-image-small"
+                      style={{ maxHeight: "220px", width: "100%", objectFit: "cover" }}
                     />
                   </div>
                 ) : null}
@@ -244,7 +264,9 @@ export default function Browse() {
                   {new Date(caseItem.lastSeenDate).toLocaleDateString()}
                 </p>
 
-                <p className="browse-case-description">{caseItem.description}</p>
+                <p className="browse-case-description">
+                  {shortenDescription(caseItem.description)}
+                </p>
 
                 <Link to={`/cases/${caseItem._id}`}>View details</Link>
               </div>
