@@ -6,6 +6,7 @@ import Case from "../models/Case.js";
 import CaseBlock from "../models/CaseBlock.js";
 import authMiddleware from "../middleware/authMiddleware.js";
 import roleMiddleware from "../middleware/roleMiddleware.js";
+import { checkContributionSafety } from "../utils/moderation.js";
 
 const router = express.Router();
 
@@ -180,6 +181,15 @@ router.post("/lead/:caseId", authMiddleware, async (req, res) => {
       });
     }
 
+    const safetyResult = checkContributionSafety(message);
+
+    if (safetyResult.blocked) {
+      return res.status(400).json({
+        ok: false,
+        message: safetyResult.message,
+      });
+    }
+
     const existingCase = await Case.findById(caseId);
 
     if (!existingCase) {
@@ -245,6 +255,15 @@ router.post("/support/:caseId", authMiddleware, async (req, res) => {
       });
     }
 
+    const safetyResult = checkContributionSafety(message);
+
+    if (safetyResult.blocked) {
+      return res.status(400).json({
+        ok: false,
+        message: safetyResult.message,
+      });
+    }
+
     const existingCase = await Case.findById(caseId);
 
     if (!existingCase) {
@@ -306,6 +325,15 @@ router.post("/:id/thread-reply", authMiddleware, async (req, res) => {
       return res.status(400).json({
         ok: false,
         message: "Reply message is required",
+      });
+    }
+
+    const safetyResult = checkContributionSafety(message);
+
+    if (safetyResult.blocked) {
+      return res.status(400).json({
+        ok: false,
+        message: safetyResult.message,
       });
     }
 
@@ -599,6 +627,15 @@ router.patch("/:id/reply", authMiddleware, async (req, res) => {
       return res.status(400).json({
         ok: false,
         message: "Reply message is required",
+      });
+    }
+
+    const safetyResult = checkContributionSafety(reply);
+
+    if (safetyResult.blocked) {
+      return res.status(400).json({
+        ok: false,
+        message: safetyResult.message,
       });
     }
 
