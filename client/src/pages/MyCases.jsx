@@ -63,13 +63,17 @@ export default function MyCases() {
       }
     };
 
-    fetchMyCases();
-  }, []);
+    if (!isModerator) {
+      fetchMyCases();
+    } else {
+      setLoading(false);
+    }
+  }, [isModerator]);
 
-  if (!user || (user.role !== "representative" && user.role !== "moderator")) {
+  if (!user || user.role !== "representative") {
     return (
       <div className="page-shell">
-        <h1 className="page-title">Active Cases</h1>
+        <h1 className="page-title">My Active Cases</h1>
         <p className="status-error">
           You do not have permission to view this page.
         </p>
@@ -79,13 +83,9 @@ export default function MyCases() {
 
   return (
     <div className="page-shell">
-      <h1 className="page-title">
-        {isModerator ? "All Active Cases" : "My Active Cases"}
-      </h1>
+      <h1 className="page-title">My Active Cases</h1>
       <p className="page-intro">
-        {isModerator
-          ? "Open any active case below to review messages and moderate activity."
-          : "Open a case below to review new messages and manage it."}
+        Open a case below to review new messages and manage it.
       </p>
 
       {loading && <p>Loading active cases...</p>}
@@ -93,11 +93,7 @@ export default function MyCases() {
       {error && <p className="status-error">{error}</p>}
 
       {!loading && !error && cases.length === 0 && (
-        <p>
-          {isModerator
-            ? "There are no active published cases right now."
-            : "You do not have any active published cases right now."}
-        </p>
+        <p>You do not have any active published cases right now.</p>
       )}
 
       {!loading && !error && cases.length > 0 && (
@@ -145,7 +141,7 @@ export default function MyCases() {
                 <p>{caseItem.description}</p>
 
                 <Link to={`/cases/${caseItem._id}`}>
-                  {isModerator ? "Review this case" : "Manage this case"}
+                  Manage this case
                 </Link>
 
                 {caseItem.newMessagesCount === 0 ? (

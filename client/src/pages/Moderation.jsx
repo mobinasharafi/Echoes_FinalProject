@@ -134,58 +134,81 @@ export default function Moderation() {
               <p>No reported comments right now.</p>
             ) : (
               <div className="stack-list">
-                {reportedContributions.map((contribution) => (
-                  <div key={contribution._id} className="sub-card">
-                    <p>
-                      <strong>Case:</strong>{" "}
-                      {contribution.caseId?.personName || "Unknown case"}
-                    </p>
-                    <p>
-                      <strong>Posted by:</strong>{" "}
-                      {contribution.createdBy?.fullName || "Unknown user"}
-                    </p>
-                    <p>
-                      <strong>Message:</strong> {contribution.message}
-                    </p>
+                {reportedContributions.map((contribution) => {
+                  const wasAutoRemoved =
+                    contribution.moderationStatus === "removed";
 
-                    <p>
-                      <strong>Reports:</strong>
-                    </p>
+                  return (
+                    <div key={contribution._id} className="sub-card">
+                      <p>
+                        <strong>Case:</strong>{" "}
+                        {contribution.caseId?.personName || "Unknown case"}
+                      </p>
+                      <p>
+                        <strong>Posted by:</strong>{" "}
+                        {contribution.createdBy?.fullName || "Unknown user"}
+                      </p>
+                      <p>
+                        <strong>Message:</strong> {contribution.message}
+                      </p>
 
-                    <div className="stack-list">
-                      {(contribution.reports || []).map((report, index) => (
-                        <div
-                          key={`${contribution._id}-report-${index}`}
-                          className="sub-card"
-                        >
-                          <p>
-                            <strong>Reason:</strong> {report.reason}
-                          </p>
-                          <p>
-                            <strong>Reported by:</strong>{" "}
-                            {report.reportedBy?.fullName || "Unknown user"}
-                          </p>
-                        </div>
-                      ))}
-                    </div>
-
-                    <div className="owner-case-actions">
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteContribution(contribution._id)}
-                        className="danger-link-button"
-                      >
-                        Delete comment
-                      </button>
-
-                      {contribution.caseId?._id ? (
-                        <Link to={`/cases/${contribution.caseId._id}`}>
-                          View case
-                        </Link>
+                      {wasAutoRemoved ? (
+                        <p className="status-error">
+                          This comment has automatically been deleted.
+                        </p>
                       ) : null}
+
+                      <p>
+                        <strong>Reports:</strong>
+                      </p>
+
+                      <div className="stack-list">
+                        {(contribution.reports || []).map((report, index) => (
+                          <div
+                            key={`${contribution._id}-report-${index}`}
+                            className="sub-card"
+                          >
+                            <p>
+                              <strong>Reason:</strong> {report.reason}
+                            </p>
+                            <p>
+                              <strong>Reported by:</strong>{" "}
+                              {report.reportedBy?.fullName || "Unknown user"}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+
+                      <div className="owner-case-actions">
+                        {!wasAutoRemoved ? (
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteContribution(contribution._id)}
+                            className="danger-link-button"
+                          >
+                            Delete comment
+                          </button>
+                        ) : null}
+
+                        {contribution.createdBy?._id ? (
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteUser(contribution.createdBy._id)}
+                            className="danger-link-button"
+                          >
+                            Delete user
+                          </button>
+                        ) : null}
+
+                        {contribution.caseId?._id ? (
+                          <Link to={`/cases/${contribution.caseId._id}`}>
+                            View case
+                          </Link>
+                        ) : null}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>

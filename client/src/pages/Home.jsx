@@ -6,6 +6,7 @@ export default function Home() {
   const storedUser = localStorage.getItem("user");
   const user = storedUser ? JSON.parse(storedUser) : null;
   const isPublicUser = user && user.role === "public";
+  const isModerator = user && user.role === "moderator";
 
   return (
     <div className="page-shell" style={{ paddingTop: "10px" }}>
@@ -48,19 +49,21 @@ export default function Home() {
           </p>
 
           <p className="home-paragraph">
-          The platform is <strong>not an alternative to official investigation.</strong>{" "}
-          Its purpose is narrower and steadier: to preserve clarity around the case and
-          offer a more contained environment for everyone involved.
-         </p>
-
-          <p className="home-paragraph">
-            If you want something a little gentler for a moment, you can visit
-            the{" "}
-            <Link to="/wellness" className="home-inline-button">
-              Wellness section
-            </Link>
-            .
+            The platform is <strong>not an alternative to official investigation.</strong>{" "}
+            Its purpose is narrower and steadier: to preserve clarity around the case and
+            offer a more contained environment for everyone involved.
           </p>
+
+          {!isModerator ? (
+            <p className="home-paragraph">
+              If you want something a little gentler for a moment, you can visit
+              the{" "}
+              <Link to="/wellness" className="home-inline-button">
+                Wellness section
+              </Link>
+              .
+            </p>
+          ) : null}
 
           {isPublicUser ? (
             <p className="home-paragraph" style={{ fontWeight: 700 }}>

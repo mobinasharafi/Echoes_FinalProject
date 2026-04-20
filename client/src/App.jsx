@@ -38,14 +38,14 @@ function AppContent() {
       <header className="nav-bar">
         <Link to="/">Home</Link>
         <Link to="/browse">Browse</Link>
-        <Link to="/wellness">Wellness</Link>
+
+        {!isModerator && <Link to="/wellness">Wellness</Link>}
 
         {isModerator && <Link to="/moderation">See Updates</Link>}
 
         {isRepresentative && <Link to="/submit">Submit Case</Link>}
 
         {isRepresentative && <Link to="/my-cases">View My Active Cases</Link>}
-        {isModerator && <Link to="/my-cases">View All Active Cases</Link>}
 
         {!user && <Link to="/login">Login</Link>}
         {!user && <Link to="/register">Register</Link>}
