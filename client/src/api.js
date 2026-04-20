@@ -52,7 +52,7 @@ async function handleResponse(res) {
         ? data.error || data.message || "Request failed"
         : data || "Request failed";
 
-    throw new Error(`Request failed (${res.status}): ${message}`);
+    throw new Error(message);
   }
 
   return data;

@@ -60,7 +60,7 @@ select {
 }
 
 button {
-  border-radius: 8px;
+  border-radius: 0;
   border: 1px solid var(--border-soft);
   background-color: #fcfaf4;
   color: var(--text-main);
@@ -121,7 +121,7 @@ p {
 
 .page-card {
   border: 1px solid var(--border-soft);
-  border-radius: 10px;
+  border-radius: 0;
   padding: 20px;
   text-align: left;
   margin-bottom: 24px;
@@ -130,7 +130,7 @@ p {
 
 .sub-card {
   border: 1px solid #e6dfd2;
-  border-radius: 10px;
+  border-radius: 0;
   padding: 16px;
   background-color: #fdfaf3;
 }
@@ -160,7 +160,7 @@ p {
   padding: 10px;
   margin-top: 6px;
   border: 1px solid var(--border-soft);
-  border-radius: 8px;
+  border-radius: 0;
   background-color: #fffdf9;
   color: var(--text-main);
 }
@@ -222,7 +222,7 @@ p {
   width: 260px;
   height: 260px;
   object-fit: cover;
-  border-radius: 8px;
+  border-radius: 0;
   display: block;
   margin-bottom: 20px;
 }
@@ -231,7 +231,7 @@ p {
   width: 220px;
   height: 220px;
   object-fit: cover;
-  border-radius: 8px;
+  border-radius: 0;
   display: block;
 }
 
@@ -273,7 +273,7 @@ p {
 
 .browse-map-card {
   border: 1px solid var(--border-soft);
-  border-radius: 12px;
+  border-radius: 0;
   padding: 18px;
   background-color: var(--card-bg);
 }
@@ -294,7 +294,7 @@ p {
 
 .browse-map-wrap {
   overflow: hidden;
-  border-radius: 12px;
+  border-radius: 0;
   border: 1px solid #d9d1c4;
 }
 
@@ -361,7 +361,7 @@ p {
   min-width: 38px;
   height: 38px;
   padding: 0;
-  border-radius: 8px;
+  border-radius: 0;
   font-size: 22px;
   line-height: 1;
 }
@@ -372,7 +372,7 @@ p {
   right: 0;
   min-width: 160px;
   border: 1px solid var(--border-soft);
-  border-radius: 10px;
+  border-radius: 0;
   background-color: #fffdf8;
   box-shadow: 0 10px 24px rgba(0, 0, 0, 0.08);
   padding: 6px;
@@ -386,7 +386,7 @@ p {
   padding: 10px 12px;
   border: none;
   background: transparent;
-  border-radius: 8px;
+  border-radius: 0;
   color: var(--text-main);
 }
 
@@ -404,7 +404,7 @@ p {
   margin-top: 14px;
   padding: 14px;
   border: 1px solid #e0d9cc;
-  border-radius: 10px;
+  border-radius: 0;
   background-color: #fffaf1;
 }
 
@@ -491,7 +491,7 @@ p {
   display: inline-block;
   padding: 3px 10px;
   border: 1px solid var(--border-soft);
-  border-radius: 999px;
+  border-radius: 0;
   background-color: #fcfaf4;
   color: var(--link-blue);
   font-weight: 500;
