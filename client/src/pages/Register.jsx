@@ -7,6 +7,7 @@ function isStrongPassword(password) {
   return strongPasswordPattern.test(password);
 }
 
+// Register page for creating a new Echoes account and confirming the platform terms before sign-up.
 export default function Register() {
   const navigate = useNavigate();
 
@@ -22,10 +23,17 @@ export default function Register() {
   const [success, setSuccess] = useState("");
   const [attemptedSubmit, setAttemptedSubmit] = useState(false);
 
+  // Terms modal + acknowledgement state
+  const [showTermsModal, setShowTermsModal] = useState(false);
+  const [hasOpenedTerms, setHasOpenedTerms] = useState(false);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
+
   const passwordIsWeak =
     attemptedSubmit &&
     formData.password.length > 0 &&
     !isStrongPassword(formData.password);
+
+  const termsNotAccepted = attemptedSubmit && !acceptedTerms;
 
   const handleChange = (event) => {
     const { name, value } = event.target;
@@ -36,12 +44,43 @@ export default function Register() {
     }));
   };
 
+  const openTermsModal = () => {
+    setShowTermsModal(true);
+    setHasOpenedTerms(true);
+  };
+
+  const closeTermsModal = () => {
+    setShowTermsModal(false);
+  };
+
+  const handleAcceptTerms = () => {
+    setAcceptedTerms(true);
+    setShowTermsModal(false);
+  };
+
+  const handleTermsCheckboxChange = () => {
+    if (!hasOpenedTerms) {
+      return;
+    }
+
+    setAcceptedTerms((prev) => !prev);
+  };
+
   const handleSubmit = async (event) => {
     event.preventDefault();
     setAttemptedSubmit(true);
-    setLoading(true);
     setError("");
     setSuccess("");
+
+    if (!isStrongPassword(formData.password)) {
+      return;
+    }
+
+    if (!acceptedTerms) {
+      return;
+    }
+
+    setLoading(true);
 
     try {
       const data = await apiPost("/api/auth/register", formData);
@@ -148,6 +187,57 @@ export default function Register() {
           are looking to become a moderator, please contact us at echoesmpc@gmail.com.
         </p>
 
+        <div className="form-row">
+          <label
+            style={{
+              display: "flex",
+              alignItems: "flex-start",
+              gap: "0.6rem",
+              cursor: hasOpenedTerms ? "pointer" : "not-allowed",
+              opacity: hasOpenedTerms ? 1 : 0.7,
+            }}
+          >
+            <input
+              type="checkbox"
+              checked={acceptedTerms}
+              onChange={handleTermsCheckboxChange}
+              disabled={!hasOpenedTerms}
+              style={{ marginTop: "0.2rem" }}
+            />
+            <span className="helper-text" style={{ margin: 0 }}>
+              I have read and understood the{" "}
+              <button
+                type="button"
+                onClick={openTermsModal}
+                style={{
+                  background: "none",
+                  border: "none",
+                  padding: 0,
+                  margin: 0,
+                  color: "var(--link-blue)",
+                  cursor: "pointer",
+                  textDecoration: "none",
+                }}
+              >
+                terms and conditions
+              </button>
+              .
+            </span>
+          </label>
+
+          {!hasOpenedTerms && (
+            <p className="helper-text" style={{ marginTop: "0.5rem" }}>
+              Please open and read the terms before confirming.
+            </p>
+          )}
+
+          {termsNotAccepted && (
+            <p className="status-error" style={{ marginTop: "0.5rem" }}>
+              You must read and accept the terms before registering.
+            </p>
+          )}
+        </div>
+
         {error && <p className="status-error">{error}</p>}
         {success && <p className="status-success">{success}</p>}
 
@@ -155,6 +245,102 @@ export default function Register() {
           {loading ? "Creating account..." : "Register"}
         </button>
       </form>
+
+      {showTermsModal && (
+        <div
+          onClick={closeTermsModal}
+          style={{
+            position: "fixed",
+            inset: 0,
+            backgroundColor: "rgba(47, 58, 54, 0.45)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "16px",
+            zIndex: 1000,
+          }}
+        >
+          <div
+            className="page-card"
+            onClick={(event) => event.stopPropagation()}
+            style={{
+              width: "100%",
+              maxWidth: "700px",
+              maxHeight: "85vh",
+              overflowY: "auto",
+              marginBottom: 0,
+            }}
+          >
+            <h2 style={{ marginTop: 0 }}>Echoes Terms and Conditions</h2>
+
+            <p>
+              Echoes is{" "}
+              <strong>
+                not a replacement for police, emergency services, or formal
+                investigation.
+              </strong>{" "}
+              Important information should be passed to the authorities. This
+              platform may support visibility and communication, but it must
+              never be treated as the primary or sufficient response to a
+              disappearance.
+            </p>
+
+            <p>
+              You must not post a person as missing if they are not missing.{" "}
+              <strong>
+                You must not use this platform to harass, manipulate, shame,
+                threaten, stalk, fabricate, speculate irresponsibly, or spread
+                misinformation.
+              </strong>{" "}
+              Any such use is a serious abuse of the platform and may result in
+              removal, reporting, or permanent restriction.
+            </p>
+
+            <p>
+              Only people who are close to the missing person, or otherwise
+              authorised to speak on their behalf, should submit cases. The
+              subject matter of this platform is sensitive by nature. That means{" "}
+              <strong>
+                users are expected to act with seriousness, honesty, and
+                restraint.
+              </strong>
+            </p>
+
+            <p>
+              By proceeding, you acknowledge the need to{" "}
+              <strong>prioritise and trust the authorities</strong> to deal with
+              each case's information and that public concern does not justify
+              reckless behaviour.
+            </p>
+
+            <div
+              style={{
+                display: "flex",
+                gap: "10px",
+                justifyContent: "flex-end",
+                flexWrap: "wrap",
+                marginTop: "16px",
+              }}
+            >
+              <button
+                type="button"
+                onClick={closeTermsModal}
+                className="secondary-button"
+              >
+                Close
+              </button>
+
+              <button
+                type="button"
+                onClick={handleAcceptTerms}
+                className="primary-button"
+              >
+                I have read and understood
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
