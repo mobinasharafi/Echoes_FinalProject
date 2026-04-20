@@ -120,6 +120,7 @@ export default function CaseDetail() {
     user.role === "representative" &&
     user.id === caseItem.createdBy?._id;
 
+  // Load the case and its contributions together so the page is ready in one fetch cycle.
   const fetchCaseAndContributions = async () => {
     try {
       setLoading(true);
@@ -189,6 +190,27 @@ export default function CaseDetail() {
     }
   }, [id, isOwner, contributions.length]);
 
+  useEffect(() => {
+    const handleOutsideClick = (event) => {
+      const clickedInsideAllowedArea = event.target.closest(
+        ".contribution-menu-wrap, .report-box"
+      );
+
+      // Only keep the menu/report UI open when the user clicks the dots area or the boxes opened from it.
+      if (!clickedInsideAllowedArea) {
+        setOpenMenuId("");
+        setOpenReportBoxId("");
+        setOpenBlockBoxId("");
+      }
+    };
+
+    document.addEventListener("mousedown", handleOutsideClick);
+
+    return () => {
+      document.removeEventListener("mousedown", handleOutsideClick);
+    };
+  }, []);
+
   const handleLeadSubmit = async (event) => {
     event.preventDefault();
     setPostingLead(true);
@@ -249,6 +271,7 @@ export default function CaseDetail() {
     setEditPhotoFile(selectedFile);
   };
 
+  // Build a FormData payload here because case edits can include an uploaded replacement image.
   const handleCaseUpdate = async (event) => {
     event.preventDefault();
     setUpdatingCase(true);
@@ -549,6 +572,7 @@ export default function CaseDetail() {
     return hasRepresentativeResponse(contribution);
   };
 
+  // When a reply is posted, replace just that one contribution so the thread refreshes without reloading the whole page.
   const handleThreadReplySubmit = async (contributionId) => {
     const message = (threadReplyDrafts[contributionId] || "").trim();
 
