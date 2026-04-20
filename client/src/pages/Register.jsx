@@ -232,7 +232,10 @@ export default function Register() {
           )}
 
           {termsNotAccepted && (
-            <p className="status-error" style={{ marginTop: "0.5rem" }}>
+            <p
+              className="helper-text"
+              style={{ marginTop: "0.5rem", color: "var(--error)" }}
+            >
               You must read and accept the terms before registering.
             </p>
           )}
