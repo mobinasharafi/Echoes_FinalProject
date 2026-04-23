@@ -207,6 +207,16 @@ This was added to ensure that users can only register with an email address they
 
 ---
 
+## Known Limitations
+
+- Echoes is not connected to official police or emergency-service systems.
+- Moderator accounts cannot be created through public registration and must be added manually in the database.
+- Email verification depends on valid configured email credentials and environment variables.
+- The platform is designed for unresolved missing persons cases in a controlled academic prototype context, so it is not intended for large-scale real-world deployment without further security, moderation, and legal review.
+- Some advanced features that would improve production readiness, such as a full notification system, are not yet implemented.
+
+---
+
 ## Setup and Run Instructions
 
 ### 1. Prerequisites
