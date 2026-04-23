@@ -1,5 +1,7 @@
 # Echoes
 
+**Live website:** https://echoes-final-project.vercel.app/
+
 ## Project Overview
 
 Echoes is a full-stack web platform designed to support unresolved missing persons cases in a more structured and ethically controlled way than general social media. It allows authorised representatives to publish and manage cases, moderators to oversee safety and moderation where needed, and public users to contribute through clearly separated channels for practical information and emotional support.
