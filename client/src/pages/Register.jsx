@@ -1,3 +1,5 @@
+// Register page for creating a new Echoes account and confirming the platform terms before sign-up.
+
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { apiPost } from "../api.js";
@@ -7,7 +9,6 @@ function isStrongPassword(password) {
   return strongPasswordPattern.test(password);
 }
 
-// Register page for creating a new Echoes account and confirming the platform terms before sign-up.
 export default function Register() {
   const navigate = useNavigate();
 
@@ -17,6 +18,9 @@ export default function Register() {
     password: "",
     role: "public",
   });
+
+  const [verificationCode, setVerificationCode] = useState("");
+  const [codeSent, setCodeSent] = useState(false);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -66,7 +70,7 @@ export default function Register() {
     setAcceptedTerms((prev) => !prev);
   };
 
-  const handleSubmit = async (event) => {
+  const handleRequestCode = async (event) => {
     event.preventDefault();
     setAttemptedSubmit(true);
     setError("");
@@ -83,16 +87,9 @@ export default function Register() {
     setLoading(true);
 
     try {
-      const data = await apiPost("/api/auth/register", formData);
-
-      localStorage.setItem("token", data.token);
-      localStorage.setItem("user", JSON.stringify(data.user));
-
-      setSuccess("Registration successful");
-
-      setTimeout(() => {
-        navigate("/");
-      }, 1000);
+      await apiPost("/api/auth/register/request-code", formData);
+      setCodeSent(true);
+      setSuccess("A 6-digit verification code has been sent to your email.");
     } catch (err) {
       const message = err.message || "Something went wrong";
 
@@ -106,12 +103,48 @@ export default function Register() {
     }
   };
 
+  const handleVerifyCode = async (event) => {
+    event.preventDefault();
+    setError("");
+    setSuccess("");
+
+    if (!verificationCode.trim()) {
+      setError("Please enter the 6-digit verification code");
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const data = await apiPost("/api/auth/register/verify-code", {
+        email: formData.email,
+        code: verificationCode,
+      });
+
+      localStorage.setItem("token", data.token);
+      localStorage.setItem("user", JSON.stringify(data.user));
+
+      setSuccess("Registration successful");
+
+      setTimeout(() => {
+        navigate("/");
+      }, 1000);
+    } catch (err) {
+      setError(err.message || "Something went wrong");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="page-shell-narrow">
       <h1 className="page-title">Register</h1>
       <p className="page-intro">Create an Echoes account.</p>
 
-      <form onSubmit={handleSubmit} className="page-card">
+      <form
+        onSubmit={codeSent ? handleVerifyCode : handleRequestCode}
+        className="page-card"
+      >
         <div className="form-row">
           <label htmlFor="fullName" className="form-label">
             Full Name
@@ -124,6 +157,7 @@ export default function Register() {
             onChange={handleChange}
             required
             className="text-input"
+            disabled={codeSent}
           />
         </div>
 
@@ -139,6 +173,7 @@ export default function Register() {
             onChange={handleChange}
             required
             className="text-input"
+            disabled={codeSent}
           />
         </div>
 
@@ -154,6 +189,7 @@ export default function Register() {
             onChange={handleChange}
             required
             className="text-input"
+            disabled={codeSent}
           />
           <p
             className="helper-text"
@@ -176,6 +212,7 @@ export default function Register() {
             value={formData.role}
             onChange={handleChange}
             className="select-input"
+            disabled={codeSent}
           >
             <option value="representative">Authorised Representative</option>
             <option value="public">Public Contributor</option>
@@ -201,7 +238,7 @@ export default function Register() {
               type="checkbox"
               checked={acceptedTerms}
               onChange={handleTermsCheckboxChange}
-              disabled={!hasOpenedTerms}
+              disabled={!hasOpenedTerms || codeSent}
               style={{ marginTop: "0.2rem" }}
             />
             <span className="helper-text" style={{ margin: 0 }}>
@@ -218,6 +255,7 @@ export default function Register() {
                   cursor: "pointer",
                   textDecoration: "none",
                 }}
+                disabled={codeSent}
               >
                 terms and conditions
               </button>
@@ -241,11 +279,38 @@ export default function Register() {
           )}
         </div>
 
+        {codeSent && (
+          <div className="form-row">
+            <label htmlFor="verificationCode" className="form-label">
+              Verification Code
+            </label>
+            <input
+              id="verificationCode"
+              name="verificationCode"
+              type="text"
+              value={verificationCode}
+              onChange={(event) => setVerificationCode(event.target.value)}
+              required
+              className="text-input"
+              placeholder="Enter the 6-digit code"
+            />
+            <p className="helper-text">
+              Please enter the 6-digit code sent to your email address.
+            </p>
+          </div>
+        )}
+
         {error && <p className="status-error">{error}</p>}
         {success && <p className="status-success">{success}</p>}
 
         <button type="submit" disabled={loading} className="primary-button">
-          {loading ? "Creating account..." : "Register"}
+          {loading
+            ? codeSent
+              ? "Verifying..."
+              : "Sending code..."
+            : codeSent
+            ? "Verify and create account"
+            : "Register"}
         </button>
       </form>
 

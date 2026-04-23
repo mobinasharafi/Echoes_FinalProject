@@ -4,9 +4,15 @@ import express from "express";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import User from "../models/User.js";
+import EmailVerification from "../models/EmailVerification.js";
 import authMiddleware from "../middleware/authMiddleware.js";
+import {
+  createVerificationCode,
+  sendVerificationEmail,
+} from "../utils/email.js";
 
 const router = express.Router();
+const VERIFICATION_CODE_EXPIRES_IN_MS = 10 * 60 * 1000;
 
 function getPasswordValidationMessage() {
   return "For safety, passwords must be at least 8 characters long and include at least one uppercase letter, one lowercase letter, and one number. Echoes deals with sensitive information, so protecting your account helps us protect you too.";
@@ -19,6 +25,17 @@ function isStrongPassword(password) {
 
   const strongPasswordPattern = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/;
   return strongPasswordPattern.test(password);
+}
+
+function createAuthToken(user) {
+  return jwt.sign(
+    {
+      userId: user._id,
+      role: user.role,
+    },
+    process.env.JWT_SECRET,
+    { expiresIn: "7d" }
+  );
 }
 
 // Quick check that auth routes are proper
@@ -77,6 +94,169 @@ router.get("/debug-register", async (req, res) => {
   }
 });
 
+// Sends a 6-digit code before the account is actually created
+router.post("/register/request-code", async (req, res) => {
+  try {
+    const { fullName, email, password, role } = req.body;
+
+    if (!fullName || !email || !password) {
+      return res.status(400).json({
+        ok: false,
+        message: "Full name, email, and password are required",
+      });
+    }
+
+    if (!isStrongPassword(password)) {
+      return res.status(400).json({
+        ok: false,
+        message: getPasswordValidationMessage(),
+      });
+    }
+
+    const trimmedEmail = email.toLowerCase().trim();
+
+    const existingUser = await User.findOne({
+      email: trimmedEmail,
+    });
+
+    if (existingUser) {
+      return res.status(400).json({
+        ok: false,
+        message: "An account with this email already exists",
+      });
+    }
+
+    const safeRole = role === "representative" ? "representative" : "public";
+    const code = createVerificationCode();
+    const passwordHash = await bcrypt.hash(password, 10);
+
+    await EmailVerification.findOneAndUpdate(
+      { email: trimmedEmail },
+      {
+        fullName: fullName.trim(),
+        email: trimmedEmail,
+        passwordHash,
+        role: safeRole,
+        code,
+        expiresAt: new Date(Date.now() + VERIFICATION_CODE_EXPIRES_IN_MS),
+      },
+      {
+        upsert: true,
+        new: true,
+        setDefaultsOnInsert: true,
+      }
+    );
+
+    try {
+      await sendVerificationEmail(trimmedEmail, code);
+    } catch (mailError) {
+      await EmailVerification.deleteOne({ email: trimmedEmail });
+
+      return res.status(500).json({
+        ok: false,
+        message: "Echoes could not send the verification email",
+        error: mailError.message,
+      });
+    }
+
+    res.json({
+      ok: true,
+      message: "Verification code sent successfully",
+    });
+  } catch (err) {
+    res.status(500).json({
+      ok: false,
+      message: "Failed to send verification code",
+      error: err.message,
+    });
+  }
+});
+
+// Completes registration only after the code is correct
+router.post("/register/verify-code", async (req, res) => {
+  try {
+    const { email, code } = req.body;
+
+    if (!email || !code) {
+      return res.status(400).json({
+        ok: false,
+        message: "Email and verification code are required",
+      });
+    }
+
+    const trimmedEmail = email.toLowerCase().trim();
+
+    const pendingEntry = await EmailVerification.findOne({
+      email: trimmedEmail,
+    });
+
+    if (!pendingEntry) {
+      return res.status(400).json({
+        ok: false,
+        message: "No pending verification was found for this email",
+      });
+    }
+
+    if (new Date() > pendingEntry.expiresAt) {
+      await EmailVerification.deleteOne({ email: trimmedEmail });
+
+      return res.status(400).json({
+        ok: false,
+        message: "This verification code has expired",
+      });
+    }
+
+    if (pendingEntry.code !== code.trim()) {
+      return res.status(400).json({
+        ok: false,
+        message: "Invalid verification code",
+      });
+    }
+
+    const existingUser = await User.findOne({
+      email: trimmedEmail,
+    });
+
+    if (existingUser) {
+      await EmailVerification.deleteOne({ email: trimmedEmail });
+
+      return res.status(400).json({
+        ok: false,
+        message: "An account with this email already exists",
+      });
+    }
+
+    const user = await User.create({
+      fullName: pendingEntry.fullName,
+      email: pendingEntry.email,
+      passwordHash: pendingEntry.passwordHash,
+      role: pendingEntry.role,
+    });
+
+    await EmailVerification.deleteOne({ email: trimmedEmail });
+
+    const token = createAuthToken(user);
+
+    res.status(201).json({
+      ok: true,
+      message: "User registered successfully",
+      token,
+      user: {
+        id: user._id,
+        fullName: user.fullName,
+        email: user.email,
+        role: user.role,
+      },
+    });
+  } catch (err) {
+    res.status(500).json({
+      ok: false,
+      message: "Failed to verify code and register user",
+      error: err.message,
+    });
+  }
+});
+
 // Register a new user
 router.post("/register", async (req, res) => {
   try {
@@ -107,9 +287,7 @@ router.post("/register", async (req, res) => {
       });
     }
 
-    // Public registration should never be able to create moderator accounts
     const safeRole = role === "representative" ? "representative" : "public";
-
     const passwordHash = await bcrypt.hash(password, 10);
 
     const user = await User.create({
@@ -119,14 +297,7 @@ router.post("/register", async (req, res) => {
       role: safeRole,
     });
 
-    const token = jwt.sign(
-      {
-        userId: user._id,
-        role: user.role,
-      },
-      process.env.JWT_SECRET,
-      { expiresIn: "7d" }
-    );
+    const token = createAuthToken(user);
 
     res.status(201).json({
       ok: true,
@@ -180,14 +351,7 @@ router.post("/login", async (req, res) => {
       });
     }
 
-    const token = jwt.sign(
-      {
-        userId: user._id,
-        role: user.role,
-      },
-      process.env.JWT_SECRET,
-      { expiresIn: "7d" }
-    );
+    const token = createAuthToken(user);
 
     res.json({
       ok: true,

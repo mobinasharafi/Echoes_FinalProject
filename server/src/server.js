@@ -10,7 +10,7 @@ import caseRoutes from "./routes/caseRoutes.js";
 import contributionRoutes from "./routes/contributionRoutes.js";
 import moderationRoutes from "./routes/moderationRoutes.js";
 
-dotenv.config();
+dotenv.config({ path: "./.env" });
 
 const app = express();
 
