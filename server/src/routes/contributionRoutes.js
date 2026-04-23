@@ -30,6 +30,30 @@ function canManageCaseContributions(user, foundCase) {
   return isCaseOwner(user, foundCase);
 }
 
+function canDeleteContribution(user, contribution, foundCase) {
+  if (!user || !contribution || !foundCase) {
+    return false;
+  }
+
+  if (canManageCaseContributions(user, foundCase)) {
+    return true;
+  }
+
+  return String(contribution.createdBy) === String(user._id);
+}
+
+function canDeleteThreadReply(user, reply, foundCase) {
+  if (!user || !reply || !foundCase) {
+    return false;
+  }
+
+  if (canManageCaseContributions(user, foundCase)) {
+    return true;
+  }
+
+  return String(reply.createdBy) === String(user._id);
+}
+
 function isActionableReason(reason) {
   return [
     "harassment",
@@ -413,6 +437,64 @@ router.post("/:id/thread-reply", authMiddleware, async (req, res) => {
   }
 });
 
+// Delete one threaded reply
+router.delete("/:id/thread-reply/:replyId", authMiddleware, async (req, res) => {
+  try {
+    const contribution = await Contribution.findById(req.params.id);
+
+    if (!contribution) {
+      return res.status(404).json({
+        ok: false,
+        message: "Contribution not found",
+      });
+    }
+
+    const existingCase = await Case.findById(contribution.caseId);
+
+    if (!existingCase) {
+      return res.status(404).json({
+        ok: false,
+        message: "Case not found",
+      });
+    }
+
+    const reply = contribution.replies.id(req.params.replyId);
+
+    if (!reply) {
+      return res.status(404).json({
+        ok: false,
+        message: "Reply not found",
+      });
+    }
+
+    if (!canDeleteThreadReply(req.user, reply, existingCase)) {
+      return res.status(403).json({
+        ok: false,
+        message: "You do not have permission to delete this reply",
+      });
+    }
+
+    contribution.replies.pull(req.params.replyId);
+    await contribution.save();
+
+    const updatedContribution = await Contribution.findById(contribution._id)
+      .populate("createdBy", "fullName role")
+      .populate("replies.createdBy", "fullName role");
+
+    res.json({
+      ok: true,
+      message: "Reply deleted successfully",
+      contribution: updatedContribution,
+    });
+  } catch (err) {
+    res.status(500).json({
+      ok: false,
+      message: "Failed to delete reply",
+      error: err.message,
+    });
+  }
+});
+
 // Report a contribution
 router.post("/:id/report", authMiddleware, async (req, res) => {
   try {
@@ -700,7 +782,7 @@ router.patch("/:id/reply", authMiddleware, async (req, res) => {
   }
 });
 
-// Delete only the current role's reply
+// Delete only the current role's older single reply field
 router.patch("/:id/delete-reply", authMiddleware, async (req, res) => {
   try {
     const contribution = await Contribution.findById(req.params.id);
@@ -770,7 +852,7 @@ router.patch("/:id/delete-reply", authMiddleware, async (req, res) => {
   }
 });
 
-// Representative or moderator can delete a contribution on that case
+// Case owner, moderator, or the original author can delete a contribution
 router.delete("/:id", authMiddleware, async (req, res) => {
   try {
     const contribution = await Contribution.findById(req.params.id);
@@ -791,7 +873,7 @@ router.delete("/:id", authMiddleware, async (req, res) => {
       });
     }
 
-    if (!canManageCaseContributions(req.user, existingCase)) {
+    if (!canDeleteContribution(req.user, contribution, existingCase)) {
       return res.status(403).json({
         ok: false,
         message: "You do not have permission to delete this contribution",

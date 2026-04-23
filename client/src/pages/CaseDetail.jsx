@@ -77,6 +77,7 @@ export default function CaseDetail() {
   const [updatingCase, setUpdatingCase] = useState(false);
   const [deletingCase, setDeletingCase] = useState(false);
   const [deletingContributionId, setDeletingContributionId] = useState("");
+  const [deletingReplyKey, setDeletingReplyKey] = useState("");
   const [blockingContributionId, setBlockingContributionId] = useState("");
   const [postingThreadReplyId, setPostingThreadReplyId] = useState("");
   const [openMenuId, setOpenMenuId] = useState("");
@@ -120,7 +121,6 @@ export default function CaseDetail() {
     user.role === "representative" &&
     user.id === caseItem.createdBy?._id;
 
-  // Load the case and its contributions together so the page is ready in one fetch cycle.
   const fetchCaseAndContributions = async () => {
     try {
       setLoading(true);
@@ -196,7 +196,7 @@ export default function CaseDetail() {
         ".contribution-menu-wrap, .report-box"
       );
 
-      // Only keep the menu/report UI open when the user clicks the dots area or the boxes opened from it.
+      // Only keep the little action areas open when the click stays around them.
       if (!clickedInsideAllowedArea) {
         setOpenMenuId("");
         setOpenReportBoxId("");
@@ -271,7 +271,6 @@ export default function CaseDetail() {
     setEditPhotoFile(selectedFile);
   };
 
-  // Build a FormData payload here because case edits can include an uploaded replacement image.
   const handleCaseUpdate = async (event) => {
     event.preventDefault();
     setUpdatingCase(true);
@@ -305,9 +304,7 @@ export default function CaseDetail() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(
-          data.error || data.message || "Failed to update case"
-        );
+        throw new Error(data.error || data.message || "Failed to update case");
       }
 
       const updatedCase = data.case;
@@ -372,6 +369,8 @@ export default function CaseDetail() {
     setDeletingContributionId(contributionId);
     setOwnerActionError("");
     setOwnerActionSuccess("");
+    setPostError("");
+    setPostSuccess("");
 
     try {
       await apiDelete(`/api/contributions/${contributionId}`, true);
@@ -380,11 +379,107 @@ export default function CaseDetail() {
         prev.filter((item) => item._id !== contributionId)
       );
 
-      setOwnerActionSuccess("Contribution deleted successfully.");
+      if (isOwner) {
+        setOwnerActionSuccess("Contribution deleted successfully.");
+      } else {
+        setPostSuccess("Contribution deleted successfully.");
+      }
     } catch (err) {
-      setOwnerActionError(err.message || "Failed to delete contribution");
+      if (isOwner) {
+        setOwnerActionError(err.message || "Failed to delete contribution");
+      } else {
+        setPostError(err.message || "Failed to delete contribution");
+      }
     } finally {
       setDeletingContributionId("");
+    }
+  };
+
+  const handleLegacyReplyDelete = async (contributionId) => {
+    const confirmed = window.confirm(
+      "Are you sure you want to delete this reply?"
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setDeletingReplyKey(contributionId);
+    setOwnerActionError("");
+    setOwnerActionSuccess("");
+    setPostError("");
+    setPostSuccess("");
+
+    try {
+      const data = await apiPatch(
+        `/api/contributions/${contributionId}/delete-reply`,
+        {},
+        true
+      );
+
+      setContributions((prev) =>
+        prev.map((item) =>
+          item._id === contributionId ? data.contribution : item
+        )
+      );
+
+      if (isOwner) {
+        setOwnerActionSuccess("Reply deleted successfully.");
+      } else {
+        setPostSuccess("Reply deleted successfully.");
+      }
+    } catch (err) {
+      if (isOwner) {
+        setOwnerActionError(err.message || "Failed to delete reply");
+      } else {
+        setPostError(err.message || "Failed to delete reply");
+      }
+    } finally {
+      setDeletingReplyKey("");
+    }
+  };
+
+  const handleThreadReplyDelete = async (contributionId, replyId) => {
+    const confirmed = window.confirm(
+      "Are you sure you want to delete this reply?"
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    const replyKey = `${contributionId}-${replyId}`;
+    setDeletingReplyKey(replyKey);
+    setOwnerActionError("");
+    setOwnerActionSuccess("");
+    setPostError("");
+    setPostSuccess("");
+
+    try {
+      const data = await apiDelete(
+        `/api/contributions/${contributionId}/thread-reply/${replyId}`,
+        true
+      );
+
+      setContributions((prev) =>
+        prev.map((item) =>
+          item._id === contributionId ? data.contribution : item
+        )
+      );
+
+      if (isOwner) {
+        setOwnerActionSuccess("Reply deleted successfully.");
+      } else {
+        setPostSuccess("Reply deleted successfully.");
+      }
+    } catch (err) {
+      if (isOwner) {
+        setOwnerActionError(err.message || "Failed to delete reply");
+      } else {
+        setPostError(err.message || "Failed to delete reply");
+      }
+    } finally {
+      setDeletingReplyKey("");
     }
   };
 
@@ -551,8 +646,6 @@ export default function CaseDetail() {
     }));
   };
 
-  // The commenter can only join after the representative has replied once.
-  // The backend checks this too, but this keeps the UI cleaner.
   const canUserReplyInThread = (contribution) => {
     if (!user) {
       return false;
@@ -562,8 +655,7 @@ export default function CaseDetail() {
       return true;
     }
 
-    const isOriginalCommenter =
-      user.id === contribution.createdBy?._id;
+    const isOriginalCommenter = user.id === contribution.createdBy?._id;
 
     if (!isOriginalCommenter) {
       return false;
@@ -572,7 +664,19 @@ export default function CaseDetail() {
     return hasRepresentativeResponse(contribution);
   };
 
-  // When a reply is posted, replace just that one contribution so the thread refreshes without reloading the whole page.
+  function canDeleteReply(reply) {
+    if (!user) {
+      return false;
+    }
+
+    if (isOwner) {
+      return true;
+    }
+
+    return user.id === reply.createdBy?._id;
+  }
+
+  // Swap only the changed contribution back in so the whole page does not have to reload.
   const handleThreadReplySubmit = async (contributionId) => {
     const message = (threadReplyDrafts[contributionId] || "").trim();
 
@@ -974,6 +1078,7 @@ export default function CaseDetail() {
                 user && user.id === contribution.createdBy?._id;
 
               const canReplyInThread = canUserReplyInThread(contribution);
+              const canDeleteThisContribution = isOwner || isOwnContribution;
 
               const reportDraftValue =
                 reportDrafts[contribution._id] || "harassment";
@@ -984,6 +1089,15 @@ export default function CaseDetail() {
               };
 
               const threadReplies = contribution.replies || [];
+
+              const canDeleteRepresentativeReply =
+                user &&
+                contribution.representativeReply &&
+                user.role === "representative" &&
+                user.id === caseItem.createdBy?._id;
+
+              const canDeleteModeratorReply =
+                user && contribution.moderatorReply && user.role === "moderator";
 
               return (
                 <div key={contribution._id} className="sub-card contribution-card">
@@ -996,57 +1110,71 @@ export default function CaseDetail() {
                       </strong>
                     </p>
 
-                    <div className="contribution-menu-wrap">
-                      <button
-                        type="button"
-                        className="menu-dots-button"
-                        onClick={() => toggleMenu(contribution._id)}
-                      >
-                        ⋯
-                      </button>
-
-                      {openMenuId === contribution._id ? (
-                        <div className="menu-dropdown">
-                          <button
-                            type="button"
-                            className="menu-dropdown-item"
-                            onClick={() =>
-                              handleCopyContribution(contribution.message)
-                            }
-                          >
-                            Copy
-                          </button>
-
-                          <button
-                            type="button"
-                            className="menu-dropdown-item"
-                            onClick={handleCopyCaseLink}
-                          >
-                            Copy case link
-                          </button>
-
-                          {!isOwner ? (
-                            <button
-                              type="button"
-                              className="menu-dropdown-item"
-                              onClick={() => handleOpenReportBox(contribution._id)}
-                              disabled={isOwnContribution}
-                            >
-                              Report
-                            </button>
-                          ) : null}
-
-                          {canBlockUsers && !isOwnContribution ? (
-                            <button
-                              type="button"
-                              className="menu-dropdown-item"
-                              onClick={() => handleOpenBlockBox(contribution._id)}
-                            >
-                              Block user
-                            </button>
-                          ) : null}
-                        </div>
+                    <div className="contribution-owner-actions" style={{ marginTop: 0 }}>
+                      {canDeleteThisContribution ? (
+                        <button
+                          type="button"
+                          onClick={() => handleContributionDelete(contribution._id)}
+                          disabled={deletingContributionId === contribution._id}
+                          className="danger-link-button"
+                          title="Delete contribution"
+                        >
+                          {deletingContributionId === contribution._id ? "..." : "🗑"}
+                        </button>
                       ) : null}
+
+                      <div className="contribution-menu-wrap">
+                        <button
+                          type="button"
+                          className="menu-dots-button"
+                          onClick={() => toggleMenu(contribution._id)}
+                        >
+                          ⋯
+                        </button>
+
+                        {openMenuId === contribution._id ? (
+                          <div className="menu-dropdown">
+                            <button
+                              type="button"
+                              className="menu-dropdown-item"
+                              onClick={() =>
+                                handleCopyContribution(contribution.message)
+                              }
+                            >
+                              Copy
+                            </button>
+
+                            <button
+                              type="button"
+                              className="menu-dropdown-item"
+                              onClick={handleCopyCaseLink}
+                            >
+                              Copy case link
+                            </button>
+
+                            {!isOwner ? (
+                              <button
+                                type="button"
+                                className="menu-dropdown-item"
+                                onClick={() => handleOpenReportBox(contribution._id)}
+                                disabled={isOwnContribution}
+                              >
+                                Report
+                              </button>
+                            ) : null}
+
+                            {canBlockUsers && !isOwnContribution ? (
+                              <button
+                                type="button"
+                                className="menu-dropdown-item"
+                                onClick={() => handleOpenBlockBox(contribution._id)}
+                              >
+                                Block user
+                              </button>
+                            ) : null}
+                          </div>
+                        ) : null}
+                      </div>
                     </div>
                   </div>
 
@@ -1169,50 +1297,104 @@ export default function CaseDetail() {
                     Posted by {contribution.createdBy?.fullName || "Echoes user"}
                   </p>
 
-                  {/* These older reply fields are still shown so nothing disappears
-                     from contributions that were created before the threaded reply system */}
                   {contribution.representativeReply ? (
                     <div className="sub-card" style={{ marginTop: "14px" }}>
-                      <p>
-                        <strong>Reply from authorised representative</strong>
-                      </p>
+                      <div className="contribution-top-row">
+                        <p>
+                          <strong>Reply from authorised representative</strong>
+                        </p>
+
+                        {canDeleteRepresentativeReply ? (
+                          <button
+                            type="button"
+                            onClick={() => handleLegacyReplyDelete(contribution._id)}
+                            disabled={deletingReplyKey === contribution._id}
+                            className="danger-link-button"
+                            title="Delete reply"
+                          >
+                            {deletingReplyKey === contribution._id ? "..." : "🗑"}
+                          </button>
+                        ) : null}
+                      </div>
+
                       <p>{contribution.representativeReply}</p>
                     </div>
                   ) : null}
 
                   {contribution.moderatorReply ? (
                     <div className="sub-card" style={{ marginTop: "14px" }}>
-                      <p>
-                        <strong>Reply from Website Moderator</strong>
-                      </p>
+                      <div className="contribution-top-row">
+                        <p>
+                          <strong>Reply from Website Moderator</strong>
+                        </p>
+
+                        {canDeleteModeratorReply ? (
+                          <button
+                            type="button"
+                            onClick={() => handleLegacyReplyDelete(contribution._id)}
+                            disabled={deletingReplyKey === contribution._id}
+                            className="danger-link-button"
+                            title="Delete reply"
+                          >
+                            {deletingReplyKey === contribution._id ? "..." : "🗑"}
+                          </button>
+                        ) : null}
+                      </div>
+
                       <p>{contribution.moderatorReply}</p>
                     </div>
                   ) : null}
 
                   {threadReplies.length > 0 ? (
                     <div style={{ marginTop: "14px" }}>
-                      {threadReplies.map((reply) => (
-                        <div
-                          key={reply._id}
-                          className="sub-card"
-                          style={{ marginTop: "10px" }}
-                        >
-                          <p>
-                            <strong>
-                              {getReplyHeading(
-                                reply.role,
-                                reply.createdBy?.fullName
-                              )}
-                            </strong>
-                          </p>
-                          <p>{reply.message}</p>
-                          <p className="helper-text">
-                            {reply.createdAt
-                              ? new Date(reply.createdAt).toLocaleString()
-                              : ""}
-                          </p>
-                        </div>
-                      ))}
+                      {threadReplies.map((reply) => {
+                        const replyDeleteKey = `${contribution._id}-${reply._id}`;
+
+                        return (
+                          <div
+                            key={reply._id}
+                            className="sub-card"
+                            style={{ marginTop: "10px" }}
+                          >
+                            <div className="contribution-top-row">
+                              <p>
+                                <strong>
+                                  {getReplyHeading(
+                                    reply.role,
+                                    reply.createdBy?.fullName
+                                  )}
+                                </strong>
+                              </p>
+
+                              {canDeleteReply(reply) ? (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    handleThreadReplyDelete(
+                                      contribution._id,
+                                      reply._id
+                                    )
+                                  }
+                                  disabled={deletingReplyKey === replyDeleteKey}
+                                  className="danger-link-button"
+                                  title="Delete reply"
+                                >
+                                  {deletingReplyKey === replyDeleteKey
+                                    ? "..."
+                                    : "🗑"}
+                                </button>
+                              ) : null}
+                            </div>
+
+                            <p>{reply.message}</p>
+                            <p className="helper-text">
+                              {reply.createdAt
+                                ? new Date(reply.createdAt).toLocaleString()
+                                : ""}
+                            </p>
+                          </div>
+                        );
+                      })}
                     </div>
                   ) : null}
 
@@ -1235,21 +1417,6 @@ export default function CaseDetail() {
                           You can reply once the authorised representative has
                           responded.
                         </p>
-                      ) : null}
-
-                      {isOwner ? (
-                        <button
-                          type="button"
-                          onClick={() =>
-                            handleContributionDelete(contribution._id)
-                          }
-                          disabled={deletingContributionId === contribution._id}
-                          className="danger-link-button"
-                        >
-                          {deletingContributionId === contribution._id
-                            ? "Deleting..."
-                            : "Delete contribution"}
-                        </button>
                       ) : null}
                     </div>
                   ) : null}
